@@ -7,6 +7,7 @@ import {
 import { api } from './api';
 import AnimatedBackground from './AnimatedBackground';
 import AnimatedNumber from './AnimatedNumber';
+import AIChat from './AIChat';
 import { theme, GRADIENT, GRADIENT_SOFT, GOLD_GRADIENT, FONT_IMPORT } from './theme';
 
 const NAV_ITEMS = [
@@ -500,6 +501,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
           </motion.div>
         </div>
       </div>
+      <AIChat />
     </div>
   );
 }

@@ -5,6 +5,41 @@
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const TOKEN_KEY = 'viralizame_token';
 
+// Chat con Viralizame IA — SSE manual (POST + ReadableStream, no EventSource
+// porque necesitamos mandar body). onDelta(texto) se llama por cada trozo.
+export async function chatIAStream(mensaje, historial, onDelta) {
+  const resp = await fetch(`${BASE_URL}/ia/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mensaje, historial }),
+  });
+  if (!resp.ok || !resp.body) {
+    const data = await resp.json().catch(() => null);
+    throw new Error(data?.error || `Error ${resp.status}`);
+  }
+
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lineas = buffer.split('\n\n');
+    buffer = lineas.pop(); // último trozo incompleto, se queda en el buffer
+
+    for (const linea of lineas) {
+      if (!linea.startsWith('data: ')) continue;
+      const payload = linea.slice(6);
+      if (payload === '[DONE]') return;
+      const { delta, error } = JSON.parse(payload);
+      if (error) throw new Error(error);
+      if (delta) onDelta(delta);
+    }
+  }
+}
+
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
 }

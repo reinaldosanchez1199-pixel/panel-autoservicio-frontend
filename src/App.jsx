@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Landing from './Landing.jsx';
 import Login from './Login.jsx';
 import Dashboard from './Dashboard.jsx';
 import AdminPanel from './AdminPanel.jsx';
@@ -7,6 +8,7 @@ import { getToken, decodeToken, clearToken } from './api';
 export default function App() {
   const [auth, setAuth] = useState(null); // null = no autenticado, { esAdmin } = autenticado
   const [vista, setVista] = useState('dashboard'); // 'dashboard' | 'admin'
+  const [vistaPublica, setVistaPublica] = useState('landing'); // 'landing' | 'auth'
 
   const cargarAuth = () => {
     const token = getToken();
@@ -32,7 +34,10 @@ export default function App() {
     setAuth(null);
   };
 
-  if (!auth) return <Login onAuth={cargarAuth} />;
+  if (!auth) {
+    if (vistaPublica === 'landing') return <Landing onEntrar={() => setVistaPublica('auth')} />;
+    return <Login onAuth={cargarAuth} />;
+  }
 
   if (vista === 'admin' && auth.esAdmin) {
     return <AdminPanel onVolver={() => setVista('dashboard')} onCerrarSesion={cerrarSesion} />;
