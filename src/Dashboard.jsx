@@ -1,14 +1,21 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import confetti from 'canvas-confetti';
 import {
   Sparkles, Link2, ChevronRight, CheckCircle2, Clock, Sun, Moon, Star, Bookmark, Rocket,
-  Home, Package, CreditCard, Activity, User, Menu, X, LogOut, Shield, Cpu, Upload,
+  Home, Package, CreditCard, Activity, User, Menu, X, LogOut, Shield, Cpu, Upload, Zap, Flame, Gem, Crown,
 } from 'lucide-react';
 import { api } from './api';
 import AnimatedBackground from './AnimatedBackground';
 import AnimatedNumber from './AnimatedNumber';
 import AIChat from './AIChat';
+import LevelProgress from './LevelProgress';
 import { theme, GRADIENT, GRADIENT_SOFT, GOLD_GRADIENT, FONT_IMPORT } from './theme';
+
+const TIER_ICONOS = [Zap, Flame, Gem, Crown];
+function celebrar() {
+  confetti({ particleCount: 90, spread: 75, origin: { y: 0.7 }, colors: ['#7C3AED', '#EC4899', '#06B6D4', '#F5C542'] });
+}
 
 const NAV_ITEMS = [
   { id: 'inicio', label: 'Inicio', icon: Home },
@@ -89,15 +96,16 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
   const [perfiles, setPerfiles] = useState([]);
   const [historial, setHistorial] = useState([]);
   const [paquetesRecarga, setPaquetesRecarga] = useState([]);
+  const [niveles, setNiveles] = useState([]);
   const [comprobante, setComprobante] = useState(null);
   const [paqueteSeleccionado, setPaqueteSeleccionado] = useState(null);
 
   const cargarTodo = useCallback(async () => {
     try {
-      const [w, s, b, p, a, pr] = await Promise.all([
-        api.wallet(), api.services(), api.bundles(), api.perfiles(), api.activity(), api.paquetesRecarga(),
+      const [w, s, b, p, a, pr, nv] = await Promise.all([
+        api.wallet(), api.services(), api.bundles(), api.perfiles(), api.activity(), api.paquetesRecarga(), api.niveles(),
       ]);
-      setWallet(w); setServicios(s); setBundles(b); setPerfiles(p); setHistorial(a); setPaquetesRecarga(pr);
+      setWallet(w); setServicios(s); setBundles(b); setPerfiles(p); setHistorial(a); setPaquetesRecarga(pr); setNiveles(nv);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -138,6 +146,20 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
   );
   const costoConDescuento = Math.round(costoBase * (1 - (wallet.descuento_pct || 0) / 100));
   const hayItems = Object.keys(seleccion).length > 0;
+  const campanasLanzadas = useMemo(() => historial.filter((h) => h.tipo === 'consumo').length, [historial]);
+
+  // Seguidores impulsan la CUENTA (necesitan el link del perfil); likes/views/etc
+  // impulsan una PUBLICACIÓN puntual (necesitan el link del post). El botón y el
+  // placeholder se adaptan para que quede claro qué link va ahí.
+  const categoriasSeleccion = useMemo(() => {
+    const tipos = Object.keys(seleccion)
+      .map((id) => servicios.find((s) => s.id === Number(id))?.tipo || '')
+      .map((tipo) => (/segui/i.test(tipo) ? 'cuenta' : 'publicacion'));
+    return new Set(tipos);
+  }, [seleccion, servicios]);
+  const modoImpulso = categoriasSeleccion.size === 1 ? [...categoriasSeleccion][0] : null;
+  const textoBotonImpulso = modoImpulso === 'cuenta' ? 'Impulsar cuenta' : modoImpulso === 'publicacion' ? 'Impulsar publicación' : 'Lanzar campaña';
+  const placeholderLink = modoImpulso === 'cuenta' ? 'https://instagram.com/tu_usuario' : modoImpulso === 'publicacion' ? 'https://instagram.com/p/tu_publicacion' : 'https://instagram.com/tu_usuario o el link de tu publicación';
 
   const serviciosPorPlataforma = useMemo(() => {
     const grupos = {};
@@ -154,6 +176,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
       const items = Object.entries(seleccion).map(([serviceId, cantidad]) => ({ serviceId: Number(serviceId), cantidad }));
       await api.crearOrden(link, items);
       setMensaje('Campaña enviada — la IA ya está distribuyendo la entrega.');
+      celebrar();
       setSeleccion({}); setLink('');
       await cargarTodo();
     } catch (err) {
@@ -169,6 +192,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
     try {
       await api.crearOrdenBundle(link, bundleId);
       setMensaje('Combo enviado — en proceso.');
+      celebrar();
       setLink('');
       await cargarTodo();
     } catch (err) {
@@ -184,6 +208,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
     try {
       await api.recargaManual(paqueteSeleccionado, comprobante);
       setMensaje('Recarga enviada, un admin la revisará pronto.');
+      celebrar();
       setPaqueteSeleccionado(null); setComprobante(null); setMostrarRecarga(false);
     } catch (err) {
       setMensaje(`Error: ${err.message}`);
@@ -266,14 +291,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
           )}
         </nav>
         <div className="mt-auto flex flex-col gap-3">
-          <div className="rounded-2xl p-4 relative overflow-hidden" style={{ border: `1px solid ${t.border}` }}>
-            <div style={{ position: 'absolute', inset: 0, background: GRADIENT_SOFT }} />
-            <div className="relative flex items-center gap-2 mb-1">
-              <Cpu size={13} style={{ color: '#C4B5FD' }} />
-              <p className="text-xs font-semibold">Nivel {wallet.nivel}</p>
-            </div>
-            <p className="relative text-[11px]" style={{ color: t.muted }}>-{wallet.descuento_pct}% en cada campaña</p>
-          </div>
+          <LevelProgress consumido={Number(wallet.consumido)} nivelActual={wallet.nivel} niveles={niveles} modoOscuro={modoOscuro} />
           <button onClick={onCerrarSesion} className="flex items-center gap-2 text-xs font-medium px-1" style={{ color: t.muted }}>
             <LogOut size={14} /> Cerrar sesión
           </button>
@@ -325,7 +343,13 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3 relative">
+          <div className="flex items-center gap-2 relative">
+            {campanasLanzadas > 0 && (
+              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
+                <Rocket size={12} style={{ color: '#EC4899' }} />
+                <span className="text-xs font-bold">{campanasLanzadas}</span>
+              </div>
+            )}
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={{ background: 'rgba(245,166,35,0.15)' }}>
               <Star size={13} style={{ color: '#F5A623' }} />
               <span className="text-xs font-bold" style={{ color: '#F5A623' }}>{wallet.nivel} · -{wallet.descuento_pct}%</span>
@@ -340,20 +364,31 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
           {mostrarRecarga && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="rounded-2xl p-4 mb-6 overflow-hidden" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)' }}>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
-                {paquetesRecarga.map((p) => (
-                  <motion.button
-                    key={p.id} whileHover={{ y: -2 }}
-                    onClick={() => setPaqueteSeleccionado(p.id)}
-                    className="rounded-xl p-3 text-left"
-                    style={{
-                      background: paqueteSeleccionado === p.id ? GRADIENT_SOFT : t.input,
-                      border: paqueteSeleccionado === p.id ? '1px solid #EC4899' : `1px solid ${t.inputBorder}`,
-                    }}
-                  >
-                    <p className="text-xs" style={{ color: t.muted }}>${p.precio_usd} USD</p>
-                    <p className="font-display font-bold text-sm">{Number(p.creditos_otorgados).toLocaleString()} ♦</p>
-                  </motion.button>
-                ))}
+                {paquetesRecarga.map((p, i) => {
+                  const Icono = TIER_ICONOS[Math.min(i, TIER_ICONOS.length - 1)];
+                  const esMejorValor = i === paquetesRecarga.length - 1;
+                  const activo = paqueteSeleccionado === p.id;
+                  return (
+                    <motion.button
+                      key={p.id} whileHover={{ y: -3, scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                      onClick={() => setPaqueteSeleccionado(p.id)}
+                      className="rounded-xl p-3 text-left relative overflow-hidden"
+                      style={{
+                        background: activo ? GRADIENT_SOFT : t.input,
+                        border: activo ? '1px solid #EC4899' : esMejorValor ? '1px solid rgba(245,166,35,0.5)' : `1px solid ${t.inputBorder}`,
+                      }}
+                    >
+                      {esMejorValor && (
+                        <span className="absolute top-0 right-0 text-[8px] font-bold px-2 py-0.5 rounded-bl-lg" style={{ background: GOLD_GRADIENT, color: '#3D2A08' }}>
+                          MEJOR VALOR
+                        </span>
+                      )}
+                      <Icono size={14} style={{ color: esMejorValor ? '#F5A623' : '#C4B5FD' }} className="mb-1.5" />
+                      <p className="text-xs" style={{ color: t.muted }}>${p.precio_usd} USD</p>
+                      <p className="font-display font-bold text-sm">{Number(p.creditos_otorgados).toLocaleString()} ♦</p>
+                    </motion.button>
+                  );
+                })}
               </div>
               {paqueteSeleccionado && (
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
@@ -404,7 +439,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
 
             <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl mb-2" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
               <Link2 size={15} style={{ color: t.muted }} />
-              <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://instagram.com/tu_usuario" className="bg-transparent outline-none text-sm flex-1" style={{ color: t.text }} />
+              <input value={link} onChange={(e) => setLink(e.target.value)} placeholder={placeholderLink} className="bg-transparent outline-none text-sm flex-1" style={{ color: t.text }} />
             </div>
             {perfiles.length > 0 && (
               <div className="flex gap-2 mb-5 flex-wrap">
@@ -472,7 +507,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
               className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-display font-bold text-sm"
               style={{ background: hayItems && link ? GRADIENT : t.input, color: hayItems && link ? '#fff' : t.muted, opacity: enviando ? 0.6 : 1, boxShadow: hayItems && link ? '0 8px 30px rgba(124,58,237,0.35)' : 'none' }}
             >
-              <Rocket size={16} /> {enviando ? 'Enviando...' : 'Lanzar campaña'} <ChevronRight size={16} />
+              <Rocket size={16} /> {enviando ? 'Enviando...' : textoBotonImpulso} <ChevronRight size={16} />
             </motion.button>
           </motion.div>
 

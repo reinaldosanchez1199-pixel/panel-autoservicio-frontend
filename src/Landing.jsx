@@ -19,13 +19,13 @@ const PASOS = [
   { icon: LayoutDashboard, titulo: 'Elige tu campaña', texto: 'Selecciona la red social, el servicio y la cantidad. Todo desde tu panel, sin escribirle a nadie.' },
   { icon: Wallet, titulo: 'Paga con Viral Credits', texto: 'Recarga con Zelle, PayPal, Binance y más. Tu saldo se acredita en minutos.' },
   { icon: Cpu, titulo: 'La IA distribuye la entrega', texto: 'Nuestro motor calcula el ritmo ideal para que el crecimiento se vea natural y tu cuenta quede protegida.' },
-  { icon: RefreshCw, titulo: 'Garantía de reposición', texto: 'Si tus números bajan, el sistema repone automáticamente sin costo adicional.' },
+  { icon: RefreshCw, titulo: 'Reposición cuando la necesites', texto: 'Si tus números bajan, solicita la reposición con un clic desde tu panel — sin escribirle a nadie.' },
 ];
 
 const FEATURES = [
   { icon: ShieldCheck, titulo: 'Nunca pedimos tu contraseña', texto: 'Solo necesitamos tu usuario público. Tu cuenta sigue 100% bajo tu control.' },
-  { icon: Zap, titulo: 'Resultados en horas, no días', texto: 'Likes y reproducciones en 2–6 horas. Seguidores desde menos de 24h, con avance gradual.' },
-  { icon: RefreshCw, titulo: 'Reposición automática', texto: 'Si detectamos una caída en tus números, la IA la repone sola. Sin trámites, sin esperar respuesta.' },
+  { icon: Zap, titulo: 'Entrega inmediata', texto: 'Tu campaña empieza a procesarse al instante. El tiempo total de entrega depende del servicio y la cantidad — lo verás detallado en cada pedido.' },
+  { icon: RefreshCw, titulo: 'Reposición con un clic', texto: 'Si tus números bajan, pide la reposición tú mismo desde tu panel. Sin trámites, sin esperar respuesta.' },
   { icon: Cpu, titulo: 'Autoservicio total', texto: 'Pedidos, saldo, historial y recargas — todo se gestiona solo, sin depender de un agente humano.' },
 ];
 
@@ -43,11 +43,11 @@ const FAQS = [
   },
   {
     q: '¿Cuánto tarda en llegar mi pedido?',
-    a: 'Likes y reproducciones suelen llegar en 2–6 horas tras confirmarse el pago. Los seguidores comienzan a entregarse en menos de 24 horas y avanzan de forma gradual — así el crecimiento se ve orgánico.',
+    a: 'Tu campaña empieza a procesarse de inmediato tras confirmarse el pago. El tiempo total varía según el servicio y la cantidad elegida — cada pedido muestra su propio tiempo estimado de entrega.',
   },
   {
     q: '¿Qué pasa si mis números bajan después?',
-    a: 'Cada campaña incluye garantía de reposición: si el sistema detecta una caída, la repone automáticamente sin costo adicional para ti.',
+    a: 'Puedes solicitar la reposición tú mismo desde tu panel con un clic — la solicitud va directo a nuestro proveedor, sin escribirle a nadie ni esperar respuesta.',
   },
   {
     q: '¿Cómo recargo mi saldo de Viral Credits?',
