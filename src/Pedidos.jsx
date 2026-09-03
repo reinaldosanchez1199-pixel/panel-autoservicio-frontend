@@ -1,0 +1,95 @@
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Package, RefreshCw, CheckCircle2, Clock, XCircle, Undo2 } from 'lucide-react';
+import { GRADIENT } from './theme';
+
+const ESTADO_INFO = {
+  completado: { icon: CheckCircle2, color: '#10B981', label: 'Completado' },
+  procesando: { icon: Clock, color: '#F5A623', label: 'Procesando' },
+  pendiente: { icon: Clock, color: '#F5A623', label: 'Pendiente' },
+  error: { icon: XCircle, color: '#EC4899', label: 'Error' },
+  reembolsado: { icon: Undo2, color: '#8B7FB8', label: 'Reembolsado' },
+};
+
+function ItemRefillButton({ item, onRefill, t }) {
+  const [enviando, setEnviando] = useState(false);
+  if (!item.soporta_refill || item.estado !== 'completado') return null;
+
+  if (item.refill_solicitado_en) {
+    return <span className="text-[10px] font-semibold" style={{ color: '#8B7FB8' }}>Reposición solicitada</span>;
+  }
+
+  return (
+    <motion.button
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      disabled={enviando}
+      onClick={async () => {
+        setEnviando(true);
+        await onRefill(item.id);
+        setEnviando(false);
+      }}
+      className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full"
+      style={{ background: GRADIENT, color: '#fff', opacity: enviando ? 0.6 : 1 }}
+    >
+      <RefreshCw size={10} /> {enviando ? 'Enviando...' : 'Solicitar reposición'}
+    </motion.button>
+  );
+}
+
+export default function Pedidos({ ordenes, cargandoOrdenes, onRefill, t }) {
+  if (cargandoOrdenes || ordenes === null) {
+    return <p className="text-xs py-10 text-center" style={{ color: t.muted }}>Cargando tus pedidos...</p>;
+  }
+
+  if (ordenes.length === 0) {
+    return (
+      <div className="rounded-3xl p-10 text-center" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)' }}>
+        <Package size={28} style={{ color: t.muted, margin: '0 auto 10px' }} />
+        <p className="text-sm" style={{ color: t.muted }}>Todavía no has lanzado ninguna campaña.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 mb-6">
+      {ordenes.map((o, i) => {
+        const info = ESTADO_INFO[o.estado] || ESTADO_INFO.pendiente;
+        const Icon = info.icon;
+        return (
+          <motion.div
+            key={o.id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: Math.min(i * 0.05, 0.3) }}
+            className="rounded-2xl p-4"
+            style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)' }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-1.5">
+                <Icon size={13} style={{ color: info.color }} />
+                <span className="text-xs font-bold" style={{ color: info.color }}>{info.label}</span>
+                <span className="text-[10px]" style={{ color: t.muted }}>· {new Date(o.creado_en).toLocaleDateString()}</span>
+              </div>
+              <span className="font-display font-bold text-sm">{Number(o.costo_total_creditos).toLocaleString()} ♦</span>
+            </div>
+            <div className="space-y-2">
+              {o.items.map((item) => {
+                const itemInfo = ESTADO_INFO[item.estado] || ESTADO_INFO.pendiente;
+                return (
+                  <div key={item.id} className="flex items-center justify-between px-3 py-2 rounded-xl" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
+                    <div>
+                      <p className="text-xs font-medium">{item.nombre_publico}</p>
+                      <p className="text-[10px]" style={{ color: itemInfo.color }}>{item.cantidad.toLocaleString()} · {itemInfo.label}</p>
+                    </div>
+                    <ItemRefillButton item={item} onRefill={onRefill} t={t} />
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}

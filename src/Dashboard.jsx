@@ -10,6 +10,7 @@ import AnimatedBackground from './AnimatedBackground';
 import AnimatedNumber from './AnimatedNumber';
 import AIChat from './AIChat';
 import LevelProgress from './LevelProgress';
+import Pedidos from './Pedidos';
 import { theme, GRADIENT, GRADIENT_SOFT, GOLD_GRADIENT, FONT_IMPORT } from './theme';
 
 const TIER_ICONOS = [Zap, Flame, Gem, Crown];
@@ -99,6 +100,8 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
   const [niveles, setNiveles] = useState([]);
   const [comprobante, setComprobante] = useState(null);
   const [paqueteSeleccionado, setPaqueteSeleccionado] = useState(null);
+  const [ordenes, setOrdenes] = useState(null); // null = aún no cargadas
+  const [cargandoOrdenes, setCargandoOrdenes] = useState(false);
 
   const cargarTodo = useCallback(async () => {
     try {
@@ -114,6 +117,31 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
   }, []);
 
   useEffect(() => { cargarTodo(); }, [cargarTodo]);
+
+  useEffect(() => {
+    if (navActivo !== 'pedidos' || ordenes !== null) return;
+    setCargandoOrdenes(true);
+    api.ordenes()
+      .then(setOrdenes)
+      .catch((err) => setError(err.message))
+      .finally(() => setCargandoOrdenes(false));
+  }, [navActivo, ordenes]);
+
+  const solicitarRefillItem = async (itemId) => {
+    try {
+      await api.solicitarRefill(itemId);
+      celebrar();
+      setMensaje('Reposición solicitada — ya va en camino.');
+      setOrdenes((prev) =>
+        prev.map((o) => ({
+          ...o,
+          items: o.items.map((it) => (it.id === itemId ? { ...it, refill_solicitado_en: new Date().toISOString() } : it)),
+        }))
+      );
+    } catch (err) {
+      setMensaje(`Error: ${err.message}`);
+    }
+  };
 
   const t = theme[modoOscuro ? 'dark' : 'light'];
 
@@ -360,6 +388,10 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
           </div>
         </motion.div>
 
+        {navActivo === 'pedidos' ? (
+          <Pedidos ordenes={ordenes} cargandoOrdenes={cargandoOrdenes} onRefill={solicitarRefillItem} t={t} />
+        ) : (
+        <>
         <AnimatePresence>
           {mostrarRecarga && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="rounded-2xl p-4 mb-6 overflow-hidden" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)' }}>
@@ -535,6 +567,8 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
             </div>
           </motion.div>
         </div>
+        </>
+        )}
       </div>
       <AIChat />
     </div>

@@ -107,6 +107,8 @@ export const api = {
   crearOrden: (linkCliente, items) => request('/api/orders', { method: 'POST', body: { linkCliente, items } }),
   crearOrdenBundle: (linkCliente, bundleId) => request('/api/orders/bundle', { method: 'POST', body: { linkCliente, bundleId } }),
   orden: (id) => request(`/api/orders/${id}`),
+  ordenes: () => request('/api/orders'),
+  solicitarRefill: (itemId) => request(`/api/orders/items/${itemId}/refill`, { method: 'POST' }),
   recargaManual: (paqueteId, comprobanteFile) => {
     const form = new FormData();
     form.append('paqueteId', paqueteId);
