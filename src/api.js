@@ -93,6 +93,7 @@ export const api = {
   // Auth (rutas públicas, sin /api)
   registro: (email, password, nombre) => request('/auth/registro', { method: 'POST', body: { email, password, nombre } }),
   login: (email, password) => request('/auth/login', { method: 'POST', body: { email, password } }),
+  loginGoogle: (credential) => request('/auth/google', { method: 'POST', body: { credential } }),
 
   // Cliente
   wallet: () => request('/api/wallet'),

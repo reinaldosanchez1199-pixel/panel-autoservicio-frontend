@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ArrowRight, Zap, TrendingUp, Cpu } from 'lucide-react';
 import { api, setToken } from './api';
 import AnimatedBackground from './AnimatedBackground';
 import { theme, GRADIENT, FONT_IMPORT } from './theme';
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
 const PILARES = [
   { icon: Cpu, texto: 'Motor de distribución con IA que decide el mejor ritmo de entrega' },
@@ -19,6 +21,7 @@ export default function Login({ onAuth }) {
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(false);
   const t = theme.dark;
+  const googleBtnRef = useRef(null);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -34,6 +37,42 @@ export default function Login({ onAuth }) {
       setCargando(false);
     }
   };
+
+  // Botón de Google (Google Identity Services) — un mismo flujo sirve para
+  // login y registro: el backend crea la cuenta sola si el email es nuevo.
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return;
+
+    const iniciar = () => {
+      if (!window.google?.accounts?.id || !googleBtnRef.current) return;
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: async ({ credential }) => {
+          setError('');
+          setCargando(true);
+          try {
+            const data = await api.loginGoogle(credential);
+            setToken(data.token);
+            onAuth();
+          } catch (err) {
+            setError(err.message);
+          } finally {
+            setCargando(false);
+          }
+        },
+      });
+      window.google.accounts.id.renderButton(googleBtnRef.current, {
+        theme: 'filled_black', size: 'large', width: 320, text: 'continue_with', locale: 'es',
+      });
+    };
+
+    if (window.google?.accounts?.id) iniciar();
+    else {
+      const script = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
+      script?.addEventListener('load', iniciar);
+      return () => script?.removeEventListener('load', iniciar);
+    }
+  }, []);
 
   return (
     <div style={{ background: t.bg, minHeight: '100vh', fontFamily: "'Inter', sans-serif", color: t.text, position: 'relative' }}>
@@ -112,6 +151,17 @@ export default function Login({ onAuth }) {
                 Crear cuenta
               </button>
             </div>
+
+            {GOOGLE_CLIENT_ID && (
+              <>
+                <div className="flex justify-center mb-4" ref={googleBtnRef} />
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="flex-1 h-px" style={{ background: t.inputBorder }} />
+                  <span className="text-[10px]" style={{ color: t.muted }}>o con tu email</span>
+                  <div className="flex-1 h-px" style={{ background: t.inputBorder }} />
+                </div>
+              </>
+            )}
 
             <form onSubmit={submit}>
               <AnimatePresence mode="wait">
