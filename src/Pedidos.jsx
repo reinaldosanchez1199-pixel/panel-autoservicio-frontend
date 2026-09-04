@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Package, RefreshCw, CheckCircle2, Clock, XCircle, Undo2, Repeat } from 'lucide-react';
+import { Package, RefreshCw, CheckCircle2, Clock, XCircle, Undo2, Repeat, Link2 } from 'lucide-react';
 import { GRADIENT } from './theme';
 import ProgressMessages from './ProgressMessages';
 
@@ -143,6 +143,15 @@ export default function Pedidos({ ordenes, cargandoOrdenes, onRefill, onRepetir,
               </div>
               <span className="font-display font-bold text-sm">{Number(o.costo_total_creditos).toLocaleString()} ♦</span>
             </div>
+            {o.link_cliente && (
+              <a
+                href={o.link_cliente} target="_blank" rel="noreferrer"
+                className="flex items-center gap-1 text-[10px] mb-3 truncate"
+                style={{ color: t.muted }}
+              >
+                <Link2 size={10} className="shrink-0" /> <span className="truncate">{o.link_cliente}</span>
+              </a>
+            )}
             <div className="space-y-2">
               {o.items.map((item) => {
                 const itemInfo = ESTADO_INFO[item.estado] || ESTADO_INFO.pendiente;
