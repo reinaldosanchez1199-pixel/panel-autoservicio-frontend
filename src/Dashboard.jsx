@@ -27,6 +27,27 @@ const NAV_ITEMS = [
   { id: 'cuenta', label: 'Cuenta', icon: User },
 ];
 
+// Descuento por volumen: cada N unidades del mismo tipo suman 5% más de
+// descuento en ESE pedido — debe coincidir con el mismo mapa en wallet.js (backend).
+const TIERS_DESCUENTO_CANTIDAD = {
+  Seguidores: 500,
+  Likes: 500,
+  Vistas: 4000,
+  'Alcance + Impresiones': 4000,
+  Guardados: 400,
+  Compartidos: 400,
+  Reposts: 120,
+};
+const PCT_POR_TIER = 5;
+const MAX_TIERS_DESCUENTO = 5;
+
+function descuentoPorCantidad(tipo, cantidad) {
+  const tier = TIERS_DESCUENTO_CANTIDAD[tipo];
+  if (!tier) return 0;
+  const tiers = Math.min(MAX_TIERS_DESCUENTO, Math.floor(cantidad / tier));
+  return tiers * PCT_POR_TIER;
+}
+
 const PLATAFORMA_COLOR = {
   Instagram: '#EC4899',
   TikTok: '#06B6D4',
@@ -187,11 +208,16 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
     setCantidadSel((prev) => Math.min(servicioSel.cantidad_max, Math.max(servicioSel.cantidad_min, prev + delta)));
   };
 
+  const descuentoCantidadPct = useMemo(
+    () => (servicioSel ? descuentoPorCantidad(servicioSel.tipo, cantidadSel) : 0),
+    [servicioSel, cantidadSel]
+  );
+  const descuentoTotalPct = Math.min(45, parseFloat(wallet.descuento_pct || 0) + descuentoCantidadPct);
   const costoConDescuento = useMemo(() => {
     if (!servicioSel) return 0;
     const base = (cantidadSel / 1000) * parseFloat(servicioSel.precio_creditos_por_1000);
-    return Math.max(1, Math.round(base * (1 - (wallet.descuento_pct || 0) / 100)));
-  }, [servicioSel, cantidadSel, wallet.descuento_pct]);
+    return Math.max(1, Math.round(base * (1 - descuentoTotalPct / 100)));
+  }, [servicioSel, cantidadSel, descuentoTotalPct]);
 
   const hayItems = !!servicioSel;
   const campanasLanzadas = useMemo(() => historial.filter((h) => h.tipo === 'consumo').length, [historial]);
@@ -556,6 +582,27 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                   </div>
                 )}
 
+                {servicioSel && (() => {
+                  const tier = TIERS_DESCUENTO_CANTIDAD[servicioSel.tipo];
+                  if (!tier) return null;
+                  const tiersActuales = Math.min(MAX_TIERS_DESCUENTO, Math.floor(cantidadSel / tier));
+                  const faltanParaSiguiente = tiersActuales < MAX_TIERS_DESCUENTO ? (tiersActuales + 1) * tier - cantidadSel : 0;
+                  return (
+                    <div className="mb-3">
+                      {descuentoCantidadPct > 0 && (
+                        <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="text-[11px] font-semibold mb-1" style={{ color: '#10B981' }}>
+                          🎉 {descuentoCantidadPct}% de descuento por volumen aplicado
+                        </motion.p>
+                      )}
+                      {faltanParaSiguiente > 0 && (
+                        <p className="text-[10px]" style={{ color: t.muted }}>
+                          Agrega {faltanParaSiguiente.toLocaleString()} más para +{PCT_POR_TIER}% de descuento
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 {/* Paso 4: link (según si el servicio impulsa cuenta o publicación) */}
                 <p className="text-[11px] font-medium mb-1.5" style={{ color: t.muted }}>
                   {modoImpulso === 'cuenta' ? 'Link de tu perfil' : 'Link de tu publicación'}
@@ -577,7 +624,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
             )}
 
             <div className="flex items-center justify-between mb-3 text-sm">
-              <span style={{ color: t.muted }}>Total (nivel {wallet.nivel}, -{wallet.descuento_pct}% aplicado)</span>
+              <span style={{ color: t.muted }}>Total (-{descuentoTotalPct}% aplicado{descuentoCantidadPct > 0 ? `: ${wallet.descuento_pct}% nivel + ${descuentoCantidadPct}% volumen` : ''})</span>
               <span className="font-display font-bold grad-text">{costoConDescuento.toLocaleString()} ♦</span>
             </div>
 
