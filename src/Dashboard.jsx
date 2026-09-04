@@ -67,6 +67,15 @@ const DESCRIPCIONES_SERVICIO = {
   'Instagram:Likes femeninos': 'Likes de una audiencia mayormente latina y femenina para dar impulso y calidez a tus publicaciones 💕',
   'Instagram:Likes masculinos': 'Likes de una audiencia mayormente latina y masculina para dar impulso y calidez a tus publicaciones 🔥',
 };
+// Evita repetir la palabra cuando el nombre ya empieza con el tipo
+// (ej. tipo "Likes" + nombre "Likes masculinos" → solo "Likes masculinos",
+// no "Likes · Likes masculinos").
+function etiquetaServicio(s) {
+  if (!s) return '';
+  return s.nombre_publico.toLowerCase().startsWith(s.tipo.toLowerCase())
+    ? s.nombre_publico
+    : `${s.tipo} · ${s.nombre_publico}`;
+}
 function descripcionServicio(s) {
   if (!s) return null;
   return DESCRIPCIONES_SERVICIO[`${s.plataforma}:${s.nombre_publico}`] || DESCRIPCIONES_TIPO[s.tipo] || null;
@@ -770,9 +779,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                       {esServicioEnVivo
                         ? SERVICIO_EN_VIVO.nombre_publico
                         : servicioSel
-                        ? servicioSel.tipo === servicioSel.nombre_publico
-                          ? servicioSel.nombre_publico
-                          : `${servicioSel.tipo} · ${servicioSel.nombre_publico}`
+                        ? etiquetaServicio(servicioSel)
                         : 'Elige un servicio'}
                     </span>
                     <ChevronDown size={16} style={{ color: t.muted, transform: dropdownAbierto ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
@@ -800,7 +807,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                               borderBottom: `1px solid ${t.inputBorder}`,
                             }}
                           >
-                            {s.tipo === s.nombre_publico ? s.nombre_publico : (<><span style={{ color: t.muted }}>{s.tipo} · </span>{s.nombre_publico}</>)}
+                            {etiquetaServicio(s)}
                           </button>
                         ))}
                       </motion.div>
