@@ -25,13 +25,25 @@ const WHATSAPP_NUMERO = import.meta.env.VITE_WHATSAPP_NUMERO || '';
 function enlaceWhatsApp(mensaje) {
   return `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(mensaje)}`;
 }
+// Solo para mostrarlo legible como respaldo (ej. "+1 914-438-1571") — el
+// enlace real usa WHATSAPP_NUMERO tal cual, sin formatear.
+function formatoNumeroWhatsApp(numero) {
+  const m = numero.match(/^1(\d{3})(\d{3})(\d{4})$/);
+  return m ? `+1 ${m[1]}-${m[2]}-${m[3]}` : `+${numero}`;
+}
 
 // Métodos de pago "manuales" — requieren enviar datos sensibles (cuenta, correo,
 // wallet, o un link de pago) que preferimos NO mostrar públicos en la web. Para
 // estos, el panel pide los datos por WhatsApp en privado. "Tarjeta" también va
 // por aquí a propósito: el link de pago se manda camuflado por WhatsApp, no se
 // genera desde el panel (evita que la pasarela vea de qué es la venta).
-const MEDIOS_PAGO_MANUAL = ['Tarjeta', 'Zelle', 'PayPal', 'Criptomonedas', 'Banesco Panamá', 'Yappy', 'Bancolombia', 'Nequi'];
+// Apple Pay / Google Pay / Amazon Pay / Cash App / Cuotas se procesan igual
+// que "Tarjeta" (misma pasarela) — se listan aparte solo para que el cliente
+// vea todas las opciones que realmente acepta y confíe más al pagar.
+const MEDIOS_PAGO_MANUAL = [
+  'Tarjeta', 'Apple Pay', 'Google Pay', 'Amazon Pay', 'Cash App', 'Cuotas',
+  'Zelle', 'PayPal', 'Criptomonedas', 'Banesco Panamá', 'Yappy', 'Bancolombia', 'Nequi',
+];
 
 // Explica en corto y en humano qué hace cada tipo de servicio — para el cliente
 // nuevo que nunca ha usado un panel y no sabe qué significa "Alcance + Impresiones".
@@ -641,7 +653,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                       return (
                         <a
                           key={medio}
-                          href={WHATSAPP_NUMERO ? enlaceWhatsApp(`Hola! Quiero recargar $${paquete?.precio_usd} USD (${Number(paquete?.creditos_otorgados || 0).toLocaleString()} Viral Credits) en Viralizame vía ${medio}. ¿Me pasan los datos para pagar?`) : undefined}
+                          href={WHATSAPP_NUMERO ? enlaceWhatsApp(`Hola, quiero recargar ${Number(paquete?.creditos_otorgados || 0).toLocaleString()} Viral Credits ($${paquete?.precio_usd} USD) en Viralizame pagando con ${medio}. ¿Me confirman los datos para completar el pago?`) : undefined}
                           target="_blank" rel="noopener noreferrer"
                           onClick={() => setMetodoPagoSel(medio)}
                           className="text-xs font-medium px-3 py-1.5 rounded-full cursor-pointer"
@@ -652,6 +664,11 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                       );
                     })}
                   </div>
+                  {WHATSAPP_NUMERO && (
+                    <p className="text-[10px] mt-2" style={{ color: t.muted }}>
+                      ¿No se abrió WhatsApp? Escríbenos directo a {formatoNumeroWhatsApp(WHATSAPP_NUMERO)}
+                    </p>
+                  )}
                 </div>
               )}
               {paqueteSeleccionado && metodoPagoSel && (
