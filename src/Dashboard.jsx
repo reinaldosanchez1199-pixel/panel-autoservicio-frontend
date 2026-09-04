@@ -27,25 +27,75 @@ const NAV_ITEMS = [
   { id: 'cuenta', label: 'Cuenta', icon: User },
 ];
 
-// Descuento por volumen: cada N unidades del mismo tipo suman 5% más de
-// descuento en ESE pedido — debe coincidir con el mismo mapa en wallet.js (backend).
-const TIERS_DESCUENTO_CANTIDAD = {
-  Seguidores: 500,
-  Likes: 500,
-  Vistas: 4000,
-  'Alcance + Impresiones': 4000,
-  Guardados: 400,
-  Compartidos: 400,
-  Reposts: 120,
+// Descuento por volumen en bandas progresivas — debe coincidir con el mismo
+// mapa en wallet.js (backend), que es quien de verdad cobra el pedido.
+const BANDAS_DESCUENTO_CANTIDAD = {
+  Seguidores: [
+    { hasta: 2000, tramo: 500, pct: 3 },
+    { hasta: 5000, tramo: 2000, pct: 5 },
+    { hasta: Infinity, tramo: 5000, pct: 7 },
+  ],
+  Likes: [
+    { hasta: 2000, tramo: 500, pct: 3 },
+    { hasta: 5000, tramo: 2000, pct: 5 },
+    { hasta: Infinity, tramo: 5000, pct: 7 },
+  ],
+  Vistas: [
+    { hasta: 20000, tramo: 4000, pct: 3 },
+    { hasta: 50000, tramo: 20000, pct: 5 },
+    { hasta: Infinity, tramo: 50000, pct: 7 },
+  ],
+  Guardados: [
+    { hasta: 2000, tramo: 400, pct: 3 },
+    { hasta: 5000, tramo: 2000, pct: 5 },
+    { hasta: Infinity, tramo: 5000, pct: 7 },
+  ],
+  Compartidos: [
+    { hasta: 2000, tramo: 400, pct: 3 },
+    { hasta: 5000, tramo: 2000, pct: 5 },
+    { hasta: Infinity, tramo: 5000, pct: 7 },
+  ],
+  Reposts: [
+    { hasta: 360, tramo: 120, pct: 3 },
+    { hasta: 1000, tramo: 360, pct: 5 },
+    { hasta: Infinity, tramo: 1000, pct: 7 },
+  ],
 };
-const PCT_POR_TIER = 5;
-const MAX_TIERS_DESCUENTO = 5;
+const TOPE_DESCUENTO_CANTIDAD = 35;
 
 function descuentoPorCantidad(tipo, cantidad) {
-  const tier = TIERS_DESCUENTO_CANTIDAD[tipo];
-  if (!tier) return 0;
-  const tiers = Math.min(MAX_TIERS_DESCUENTO, Math.floor(cantidad / tier));
-  return tiers * PCT_POR_TIER;
+  const bandas = BANDAS_DESCUENTO_CANTIDAD[tipo];
+  if (!bandas) return 0;
+  let descuento = 0;
+  let desde = 0;
+  for (const banda of bandas) {
+    const tramoCubierto = Math.min(cantidad, banda.hasta) - desde;
+    if (tramoCubierto > 0) descuento += Math.floor(tramoCubierto / banda.tramo) * banda.pct;
+    if (cantidad <= banda.hasta) break;
+    desde = banda.hasta;
+  }
+  return Math.min(TOPE_DESCUENTO_CANTIDAD, descuento);
+}
+
+// Próximo escalón de descuento dentro de la banda actual (para el aviso "agrega X más").
+function proximoEscalon(tipo, cantidad) {
+  const bandas = BANDAS_DESCUENTO_CANTIDAD[tipo];
+  if (!bandas) return null;
+  let desde = 0;
+  for (const banda of bandas) {
+    if (cantidad < banda.hasta) {
+      const posicion = cantidad - desde;
+      const siguiente = desde + Math.ceil((posicion + 1) / banda.tramo) * banda.tramo;
+      return { faltan: Math.min(siguiente, banda.hasta) - cantidad, pct: banda.pct };
+    }
+    desde = banda.hasta;
+  }
+  return null;
+}
+
+// El 10% de compensación (caídas naturales) solo aplica a seguidores/suscriptores.
+function requiereCompensacion(tipo) {
+  return tipo === 'Seguidores';
 }
 
 const PLATAFORMA_COLOR = {
@@ -577,19 +627,18 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                     </div>
                     <div className="text-right">
                       <p className="text-[10px]" style={{ color: t.muted }}>min {servicioSel.cantidad_min.toLocaleString()} · max {servicioSel.cantidad_max.toLocaleString()}</p>
-                      <p className="text-[10px]" style={{ color: '#10B981' }}>
-                        ✓ Se enviarán {Math.min(servicioSel.cantidad_max, Math.round(cantidadSel * 1.1)).toLocaleString()} (+10% de compensación incluido)
-                      </p>
+                      {requiereCompensacion(servicioSel.tipo) && (
+                        <p className="text-[10px]" style={{ color: '#10B981' }}>
+                          ✓ Se enviarán aprox. {Math.min(servicioSel.cantidad_max, Math.round(cantidadSel * 1.1)).toLocaleString()} (+10% de compensación incluido)
+                        </p>
+                      )}
                       <p className="text-sm font-display font-bold" style={{ color: '#F5A623' }}>{costoConDescuento.toLocaleString()} ♦</p>
                     </div>
                   </div>
                 )}
 
                 {servicioSel && (() => {
-                  const tier = TIERS_DESCUENTO_CANTIDAD[servicioSel.tipo];
-                  if (!tier) return null;
-                  const tiersActuales = Math.min(MAX_TIERS_DESCUENTO, Math.floor(cantidadSel / tier));
-                  const faltanParaSiguiente = tiersActuales < MAX_TIERS_DESCUENTO ? (tiersActuales + 1) * tier - cantidadSel : 0;
+                  const escalon = proximoEscalon(servicioSel.tipo, cantidadSel);
                   return (
                     <div className="mb-3">
                       {descuentoCantidadPct > 0 && (
@@ -597,9 +646,9 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                           🎉 {descuentoCantidadPct}% de descuento por volumen aplicado
                         </motion.p>
                       )}
-                      {faltanParaSiguiente > 0 && (
+                      {escalon && escalon.faltan > 0 && (
                         <p className="text-[10px]" style={{ color: t.muted }}>
-                          Agrega {faltanParaSiguiente.toLocaleString()} más para +{PCT_POR_TIER}% de descuento
+                          Agrega {escalon.faltan.toLocaleString()} más para +{escalon.pct}% de descuento
                         </p>
                       )}
                     </div>
