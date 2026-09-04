@@ -1,14 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, X, Image as ImageIcon, Package, Wallet, ArrowLeft, LogOut, Shield } from 'lucide-react';
+import { Check, X, Image as ImageIcon, Package, Wallet, ArrowLeft, LogOut, Shield, Search, Link2, CheckCircle2, Clock, XCircle, Undo2 } from 'lucide-react';
 import { api } from './api';
 import AnimatedBackground from './AnimatedBackground';
 import { theme, GRADIENT, FONT_IMPORT } from './theme';
+
+const ESTADO_INFO = {
+  completado: { icon: CheckCircle2, color: '#10B981', label: 'Completado' },
+  procesando: { icon: Clock, color: '#F5A623', label: 'Procesando' },
+  pendiente: { icon: Clock, color: '#F5A623', label: 'Pendiente' },
+  error: { icon: XCircle, color: '#EC4899', label: 'Error' },
+  reembolsado: { icon: Undo2, color: '#8B7FB8', label: 'Reembolsado' },
+};
 
 export default function AdminPanel({ onVolver, onCerrarSesion }) {
   const [tab, setTab] = useState('recargas');
   const [recargas, setRecargas] = useState([]);
   const [pendientes, setPendientes] = useState([]);
+  const [ordenesAdmin, setOrdenesAdmin] = useState([]);
+  const [cargandoOrdenes, setCargandoOrdenes] = useState(false);
+  const [busquedaEmail, setBusquedaEmail] = useState('');
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [borradores, setBorradores] = useState({});
@@ -27,6 +38,19 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
   }, []);
 
   useEffect(() => { cargar(); }, [cargar]);
+
+  const buscarOrdenes = useCallback(async (email) => {
+    setCargandoOrdenes(true);
+    try {
+      setOrdenesAdmin(await api.adminOrdenes(email));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCargandoOrdenes(false);
+    }
+  }, []);
+
+  useEffect(() => { if (tab === 'pedidos') buscarOrdenes(busquedaEmail); }, [tab]);
 
   const aprobar = async (id) => {
     try {
@@ -110,6 +134,13 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
             style={{ background: tab === 'servicios' ? GRADIENT : t.surface, color: tab === 'servicios' ? '#fff' : t.muted, border: `1px solid ${t.border}` }}
           >
             <Package size={15} /> Servicios nuevos ({pendientes.length})
+          </button>
+          <button
+            onClick={() => setTab('pedidos')}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold"
+            style={{ background: tab === 'pedidos' ? GRADIENT : t.surface, color: tab === 'pedidos' ? '#fff' : t.muted, border: `1px solid ${t.border}` }}
+          >
+            <Search size={15} /> Pedidos
           </button>
         </div>
 
@@ -199,6 +230,66 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {tab === 'pedidos' && (
+          <div>
+            <form
+              onSubmit={(e) => { e.preventDefault(); buscarOrdenes(busquedaEmail); }}
+              className="flex items-center gap-2 mb-4"
+            >
+              <input
+                value={busquedaEmail}
+                onChange={(e) => setBusquedaEmail(e.target.value)}
+                placeholder="Buscar por correo del cliente..."
+                className="flex-1 text-sm px-4 py-2.5 rounded-xl outline-none"
+                style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.text }}
+              />
+              <button type="submit" className="px-4 py-2.5 rounded-xl text-sm font-semibold" style={{ background: GRADIENT, color: '#fff' }}>
+                Buscar
+              </button>
+            </form>
+
+            {cargandoOrdenes && <p className="text-sm" style={{ color: t.muted }}>Buscando...</p>}
+            {!cargandoOrdenes && ordenesAdmin.length === 0 && (
+              <p className="text-sm text-center py-10" style={{ color: t.muted }}>No hay pedidos que coincidan.</p>
+            )}
+            <div className="space-y-3">
+              {ordenesAdmin.map((o) => {
+                const info = ESTADO_INFO[o.estado] || ESTADO_INFO.pendiente;
+                const Icon = info.icon;
+                return (
+                  <div key={o.id} className="rounded-2xl p-4" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)' }}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Icon size={13} style={{ color: info.color }} className="shrink-0" />
+                        <span className="text-xs font-bold shrink-0" style={{ color: info.color }}>{info.label}</span>
+                        <span className="text-xs font-semibold truncate">· {o.email}</span>
+                      </div>
+                      <span className="font-display font-bold text-sm shrink-0">{Number(o.costo_total_creditos).toLocaleString()} ♦</span>
+                    </div>
+                    <p className="text-[10px] mb-2" style={{ color: t.muted }}>{new Date(o.creado_en).toLocaleString()}</p>
+                    {o.link_cliente && (
+                      <a href={o.link_cliente} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[10px] mb-2 truncate" style={{ color: t.muted }}>
+                        <Link2 size={10} className="shrink-0" /> <span className="truncate">{o.link_cliente}</span>
+                      </a>
+                    )}
+                    <div className="space-y-1.5">
+                      {o.items.map((item) => {
+                        const itemInfo = ESTADO_INFO[item.estado] || ESTADO_INFO.pendiente;
+                        return (
+                          <div key={item.id} className="flex items-center justify-between px-3 py-2 rounded-xl text-xs" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
+                            <span>{item.nombre_publico} · {item.plataforma}</span>
+                            <span style={{ color: itemInfo.color }}>{item.cantidad.toLocaleString()} · {itemInfo.label}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

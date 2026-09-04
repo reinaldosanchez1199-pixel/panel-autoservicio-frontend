@@ -127,4 +127,5 @@ export const api = {
   adminServiciosPendientes: () => request('/api/admin/services/pendientes'),
   adminActualizarServicio: (id, payload) => request(`/api/admin/services/${id}`, { method: 'PATCH', body: payload }),
   adminCrearBundle: (payload) => request('/api/admin/bundles', { method: 'POST', body: payload }),
+  adminOrdenes: (email) => request(`/api/admin/orders${email ? `?email=${encodeURIComponent(email)}` : ''}`),
 };
