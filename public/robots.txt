@@ -1,0 +1,34 @@
+# Buscadores tradicionales
+User-agent: *
+Allow: /
+
+# Rastreadores de motores de IA — permitidos a propósito, para que
+# ChatGPT, Gemini, Claude, Perplexity y Grok puedan leer e indexar el sitio.
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+Sitemap: https://app.viralizame.com/sitemap.xml

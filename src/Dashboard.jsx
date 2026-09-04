@@ -44,6 +44,21 @@ const DESCRIPCIONES_TIPO = {
   'Alcance + Impresiones': 'Vamos a darle mucho más posicionamiento a tu publicación 😉',
 };
 
+// Override por servicio específico (plataforma + nombre) — para casos donde la
+// descripción no aplica a todo el tipo, solo a ese servicio en particular (ej.
+// el de audiencia latina no es válido para TODOS los "Seguidores", solo para
+// el de Instagram/TikTok). Se revisa antes que DESCRIPCIONES_TIPO.
+const DESCRIPCIONES_SERVICIO = {
+  'Instagram:Seguidores': 'Seguidores reales de audiencia mayormente latina, ideales para hacer crecer tu comunidad con gente afín a tu contenido 🚀',
+  'TikTok:Seguidores': 'Seguidores reales de audiencia mayormente latina, ideales para hacer crecer tu comunidad con gente afín a tu contenido 🚀',
+  'Instagram:Likes femeninos': 'Likes de una audiencia mayormente latina y femenina para dar impulso y calidez a tus publicaciones 💕',
+  'Instagram:Likes masculinos': 'Likes de una audiencia mayormente latina y masculina para dar impulso y calidez a tus publicaciones 🔥',
+};
+function descripcionServicio(s) {
+  if (!s) return null;
+  return DESCRIPCIONES_SERVICIO[`${s.plataforma}:${s.nombre_publico}`] || DESCRIPCIONES_TIPO[s.tipo] || null;
+}
+
 // Espectadores para transmisiones en vivo — no es un servicio autoservicio
 // (necesita coordinarse en tiempo real con el cliente), así que en vez de un
 // precio y cantidad, se muestra como una opción especial que lleva a WhatsApp.
@@ -261,6 +276,16 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
     } catch (err) {
       setMensaje(`Error: ${err.message}`);
     }
+  };
+
+  // No captura el error aquí a propósito: RepetirEnvioButton lo necesita para
+  // mostrar su propio mensaje inline (ej. "sin créditos suficientes").
+  const repetirEnvioItem = async (itemId) => {
+    await api.repetirEnvio(itemId);
+    celebrar();
+    setMensaje('Envío repetido — ya va en camino.');
+    await cargarTodo();
+    setOrdenes(await api.ordenes());
   };
 
   const t = theme[modoOscuro ? 'dark' : 'light'];
@@ -534,7 +559,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
         </motion.div>
 
         {navActivo === 'pedidos' ? (
-          <Pedidos ordenes={ordenes} cargandoOrdenes={cargandoOrdenes} onRefill={solicitarRefillItem} t={t} />
+          <Pedidos ordenes={ordenes} cargandoOrdenes={cargandoOrdenes} onRefill={solicitarRefillItem} onRepetir={repetirEnvioItem} t={t} />
         ) : (
         <>
         <AnimatePresence>
@@ -747,14 +772,14 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                   <ChevronDown size={16} style={{ color: t.muted, position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                 </div>
 
-                {servicioSel && DESCRIPCIONES_TIPO[servicioSel.tipo] && (
+                {servicioSel && descripcionServicio(servicioSel) && (
                   <motion.p
-                    key={servicioSel.tipo}
+                    key={servicioSel.id}
                     initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
                     className="text-[11px] mb-3 px-1"
                     style={{ color: t.muted }}
                   >
-                    {DESCRIPCIONES_TIPO[servicioSel.tipo]}
+                    {descripcionServicio(servicioSel)}
                   </motion.p>
                 )}
 

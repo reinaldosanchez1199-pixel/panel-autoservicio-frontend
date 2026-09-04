@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Sparkles, Cpu, ShieldCheck, RefreshCw, Zap, MessageCircleQuestion, ChevronDown,
-  Instagram, Youtube, Facebook, Twitter, ArrowRight, Star, Wallet, LayoutDashboard,
+  Instagram, Youtube, Facebook, Twitter, ArrowRight, Star, Wallet, LayoutDashboard, Play,
 } from 'lucide-react';
 import AnimatedBackground from './AnimatedBackground';
 import AIChat from './AIChat';
@@ -16,25 +16,67 @@ const ESTADISTICAS = [
 ];
 
 const PASOS = [
-  { icon: LayoutDashboard, titulo: 'Elige tu campaña', texto: 'Selecciona la red social, el servicio y la cantidad. Todo desde tu panel, sin escribirle a nadie.' },
+  { icon: LayoutDashboard, titulo: 'Elige tu campaña', texto: 'Selecciona la red social, el servicio y la cantidad. Todo desde tu cuenta, sin escribirle a nadie.' },
   { icon: Wallet, titulo: 'Paga con Viral Credits', texto: 'Recarga con Zelle, PayPal, Binance y más. Tu saldo se acredita en minutos.' },
   { icon: Cpu, titulo: 'La IA distribuye la entrega', texto: 'Nuestro motor calcula el ritmo ideal para que el crecimiento se vea natural y tu cuenta quede protegida.' },
-  { icon: RefreshCw, titulo: 'Reposición cuando la necesites', texto: 'Si tus números bajan, solicita la reposición con un clic desde tu panel — sin escribirle a nadie.' },
+  { icon: RefreshCw, titulo: 'Reposición cuando la necesites', texto: 'Si tus números bajan, solicita la reposición con un clic desde tu cuenta — sin escribirle a nadie.' },
 ];
 
 const FEATURES = [
   { icon: ShieldCheck, titulo: 'Nunca pedimos tu contraseña', texto: 'Solo necesitamos tu usuario público. Tu cuenta sigue 100% bajo tu control.' },
   { icon: Zap, titulo: 'Entrega inmediata', texto: 'Tu campaña empieza a procesarse al instante. El tiempo total de entrega depende del servicio y la cantidad — lo verás detallado en cada pedido.' },
-  { icon: RefreshCw, titulo: 'Reposición con un clic', texto: 'Si tus números bajan, pide la reposición tú mismo desde tu panel. Sin trámites, sin esperar respuesta.' },
+  { icon: RefreshCw, titulo: 'Reposición con un clic', texto: 'Si tus números bajan, pide la reposición tú mismo desde tu cuenta. Sin trámites, sin esperar respuesta.' },
   { icon: Cpu, titulo: 'Autoservicio total', texto: 'Pedidos, saldo, historial y recargas — todo se gestiona solo, sin depender de un agente humano.' },
 ];
 
+// Mismos 4 testimonios en video de viralizame.com (YouTube, carga solo al hacer clic).
 const TESTIMONIOS = [
-  { nombre: 'Leonardo Carrillo', rol: 'Barbero · Miami, FL', texto: 'Se ve mucho más profesional. La gente lo nota de inmediato.' },
-  { nombre: 'Luisana Páez', rol: 'Blogger · New York, NY', texto: 'El proceso fue rapidísimo y el resultado superó lo que esperaba.' },
-  { nombre: 'Martín Mendoza', rol: 'Abogado · Houston, TX', texto: 'La diferencia visual es notable. Mi cuenta transmite otra cosa ahora.' },
-  { nombre: 'Alejo Jaramillo', rol: 'Fotógrafo · Los Angeles, CA', texto: 'Nunca pensé que un cambio así haría tanta diferencia. Lo recomiendo sin dudar.' },
+  { nombre: 'Leonardo Carrillo', rol: 'Barbero · Miami, FL', texto: 'Se ve mucho más profesional. La gente lo nota de inmediato.', youtubeId: 'b9q0K0vMpkQ', thumb: 'https://www.worldklox.com/images/thumb1.jpeg' },
+  { nombre: 'Luisana Páez', rol: 'Blogger · New York, NY', texto: 'El proceso fue rapidísimo y el resultado superó lo que esperaba.', youtubeId: 'fWdYb7kWH_w', thumb: 'https://www.worldklox.com/images/thumb2.jpeg' },
+  { nombre: 'Martín Mendoza', rol: 'Abogado · Houston, TX', texto: 'La diferencia visual es notable. Mi cuenta transmite otra cosa ahora.', youtubeId: 'g2uxsgawS3Y', thumb: 'https://www.worldklox.com/images/thumb3.jpeg' },
+  { nombre: 'Alejo Jaramillo', rol: 'Fotógrafo · Los Angeles, CA', texto: 'Nunca pensé que un cambio así haría tanta diferencia. Lo recomiendo sin dudar.', youtubeId: '2aXXqAYfZXY', thumb: 'https://www.worldklox.com/images/thumb4.jpeg' },
 ];
+
+// Miniatura 9:16 con botón de reproducir — el iframe de YouTube solo se monta
+// al hacer clic (igual que en viralizame.com), para no cargar 4 videos de una.
+function TestimonioVideo({ tst, i, t }) {
+  const [reproduciendo, setReproduciendo] = useState(false);
+  return (
+    <motion.div initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.06 }} className="rounded-2xl overflow-hidden" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)' }}>
+      <div className="relative w-full" style={{ aspectRatio: '9/16', background: '#000' }}>
+        {reproduciendo ? (
+          <iframe
+            src={`https://www.youtube.com/embed/${tst.youtubeId}?autoplay=1`}
+            title={tst.nombre}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            className="absolute inset-0 w-full h-full"
+            style={{ border: 0 }}
+          />
+        ) : (
+          <button onClick={() => setReproduciendo(true)} className="absolute inset-0 w-full h-full">
+            <img src={tst.thumb} alt={tst.nombre} loading="lazy" className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: 'top' }} />
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,.65) 0%, transparent 45%)' }} />
+            <div className="absolute bottom-3.5 left-1/2 flex flex-col items-center gap-1.5" style={{ transform: 'translateX(-50%)' }}>
+              <div className="w-11 h-11 rounded-full flex items-center justify-center" style={{ background: GRADIENT }}>
+                <Play size={16} color="#fff" fill="#fff" />
+              </div>
+              <span className="text-[9px] font-bold text-white tracking-wide" style={{ textShadow: '0 1px 4px rgba(0,0,0,.8)' }}>VER HISTORIA</span>
+            </div>
+          </button>
+        )}
+      </div>
+      <div className="p-3.5">
+        <div className="flex gap-0.5 mb-1.5">
+          {[...Array(5)].map((_, j) => <Star key={j} size={11} fill="#F5A623" style={{ color: '#F5A623' }} />)}
+        </div>
+        <p className="text-xs mb-2 leading-relaxed">"{tst.texto}"</p>
+        <p className="text-xs font-semibold">{tst.nombre}</p>
+        <p className="text-[10px]" style={{ color: t.muted }}>{tst.rol}</p>
+      </div>
+    </motion.div>
+  );
+}
 
 const FAQS = [
   {
@@ -47,15 +89,15 @@ const FAQS = [
   },
   {
     q: '¿Qué pasa si mis números bajan después?',
-    a: 'Puedes solicitar la reposición tú mismo desde tu panel con un clic — la solicitud va directo a nuestro proveedor, sin escribirle a nadie ni esperar respuesta.',
+    a: 'Puedes solicitar la reposición tú mismo desde tu cuenta con un clic — se procesa al instante, sin escribirle a nadie ni esperar respuesta.',
   },
   {
     q: '¿Cómo recargo mi saldo de Viral Credits?',
-    a: 'Desde tu panel, eliges un paquete y subes tu comprobante de pago (Zelle, PayPal, Binance y más). Tu saldo se acredita apenas se confirma, normalmente en minutos.',
+    a: 'Desde tu cuenta, eliges un paquete y subes tu comprobante de pago (Zelle, PayPal, Binance y más). Tu saldo se acredita apenas se confirma, normalmente en minutos.',
   },
   {
     q: '¿Necesito escribirle a alguien para procesar mi pedido?',
-    a: 'No. Todo el proceso —elegir el servicio, pagar, ver el estado del pedido— lo haces tú mismo desde el panel, 100% self-service, disponible 24/7.',
+    a: 'No. Todo el proceso —elegir el servicio, pagar, ver el estado del pedido— lo haces tú mismo desde tu cuenta, 100% self-service, disponible 24/7.',
   },
   {
     q: '¿Qué plataformas soportan?',
@@ -195,14 +237,7 @@ export default function Landing({ onEntrar }) {
           <h2 className="font-display text-2xl sm:text-3xl font-bold text-center mb-10">Creadores y negocios reales</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {TESTIMONIOS.map((tst, i) => (
-              <motion.div key={i} initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.06 }} className="rounded-2xl p-4" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)' }}>
-                <div className="flex gap-0.5 mb-2">
-                  {[...Array(5)].map((_, j) => <Star key={j} size={11} fill="#F5A623" style={{ color: '#F5A623' }} />)}
-                </div>
-                <p className="text-xs mb-3 leading-relaxed">"{tst.texto}"</p>
-                <p className="text-xs font-semibold">{tst.nombre}</p>
-                <p className="text-[10px]" style={{ color: t.muted }}>{tst.rol}</p>
-              </motion.div>
+              <TestimonioVideo key={i} tst={tst} i={i} t={t} />
             ))}
           </div>
         </section>
@@ -224,7 +259,7 @@ export default function Landing({ onEntrar }) {
         {/* CTA final */}
         <section className="max-w-3xl mx-auto px-6 mb-16 text-center rounded-3xl py-12" style={{ background: GRADIENT_SOFT, border: `1px solid ${t.border}` }}>
           <h2 className="font-display text-2xl sm:text-3xl font-bold mb-3">Gestiona tus campañas tú mismo, hoy</h2>
-          <p className="text-sm mb-6" style={{ color: t.muted }}>Sin escribirle a nadie. Sin esperar respuesta. Solo tú, tu panel, y una IA trabajando por ti.</p>
+          <p className="text-sm mb-6" style={{ color: t.muted }}>Sin escribirle a nadie. Sin esperar respuesta. Solo tú, tu cuenta, y una IA trabajando por ti.</p>
           <motion.button whileHover={{ scale: 1.03 }} onClick={onEntrar} className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full font-display font-bold text-sm" style={{ background: GRADIENT, color: '#fff', boxShadow: '0 8px 30px rgba(124,58,237,0.35)' }}>
             Empezar ahora <ArrowRight size={16} />
           </motion.button>
