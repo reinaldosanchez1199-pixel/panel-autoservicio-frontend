@@ -24,7 +24,10 @@ function calcularProgreso(item) {
 
 function ItemRefillButton({ item, onRefill, t }) {
   const [enviando, setEnviando] = useState(false);
-  if (!item.soporta_refill || item.estado !== 'completado') return null;
+  // Reposición solo para Seguidores/Suscriptores — el resto de servicios
+  // (likes, vistas, etc.) son estables y no la necesitan, aunque el
+  // proveedor técnicamente la soporte.
+  if (!item.soporta_refill || item.estado !== 'completado' || !/segui/i.test(item.tipo)) return null;
 
   if (item.refill_solicitado_en) {
     return <span className="text-[10px] font-semibold" style={{ color: '#8B7FB8' }}>Reposición solicitada</span>;
