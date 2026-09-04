@@ -577,6 +577,9 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                     </div>
                     <div className="text-right">
                       <p className="text-[10px]" style={{ color: t.muted }}>min {servicioSel.cantidad_min.toLocaleString()} · max {servicioSel.cantidad_max.toLocaleString()}</p>
+                      <p className="text-[10px]" style={{ color: '#10B981' }}>
+                        ✓ Se enviarán {Math.min(servicioSel.cantidad_max, Math.round(cantidadSel * 1.1)).toLocaleString()} (+10% de compensación incluido)
+                      </p>
                       <p className="text-sm font-display font-bold" style={{ color: '#F5A623' }}>{costoConDescuento.toLocaleString()} ♦</p>
                     </div>
                   </div>
