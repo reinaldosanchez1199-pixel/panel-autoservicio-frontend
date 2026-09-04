@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import {
@@ -231,6 +231,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
   const [mostrarRecarga, setMostrarRecarga] = useState(false);
   const [navActivo, setNavActivo] = useState('inicio');
   const [sidebarAbierto, setSidebarAbierto] = useState(false);
+  const actividadRef = useRef(null);
 
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
@@ -475,7 +476,12 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
             return (
               <button
                 key={item.id}
-                onClick={() => { setNavActivo(item.id); setSidebarAbierto(false); }}
+                onClick={() => {
+                  setNavActivo(item.id);
+                  setSidebarAbierto(false);
+                  if (item.id === 'recargas') setMostrarRecarga(true);
+                  if (item.id === 'actividad') setTimeout(() => actividadRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+                }}
                 className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-left relative"
                 style={{ color: activo ? '#fff' : t.muted }}
               >
@@ -914,7 +920,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
             )}
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.5 }} className="lg:col-span-2 rounded-3xl p-6" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)' }}>
+          <motion.div ref={actividadRef} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.5 }} className="lg:col-span-2 rounded-3xl p-6" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)' }}>
             <div className="flex items-center gap-2 mb-4">
               <div className="w-2 h-2 rounded-full glow-pulse" style={{ background: '#10B981' }} />
               <h2 className="font-display font-bold text-sm">Actividad en tiempo real</h2>
