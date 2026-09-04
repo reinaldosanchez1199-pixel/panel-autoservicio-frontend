@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import {
-  Sparkles, Link2, ChevronRight, CheckCircle2, Clock, Sun, Moon, Star, Bookmark, Rocket,
+  Sparkles, Link2, ChevronRight, ChevronDown, CheckCircle2, Clock, Sun, Moon, Star, Bookmark, Rocket,
   Home, Package, CreditCard, Activity, User, Menu, X, LogOut, Shield, Cpu, Upload, Zap, Flame, Gem, Crown,
 } from 'lucide-react';
 import { api } from './api';
@@ -80,7 +80,10 @@ function Loader({ texto }) {
 
 export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
   const [modoOscuro, setModoOscuro] = useState(true);
-  const [seleccion, setSeleccion] = useState({});
+  const [plataformaSel, setPlataformaSel] = useState('');
+  const [servicioSelId, setServicioSelId] = useState(null);
+  const [cantidadSel, setCantidadSel] = useState(0);
+  const [dropdownAbierto, setDropdownAbierto] = useState(false);
   const [link, setLink] = useState('');
   const [mostrarRecarga, setMostrarRecarga] = useState(false);
   const [navActivo, setNavActivo] = useState('inicio');
@@ -145,49 +148,10 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
 
   const t = theme[modoOscuro ? 'dark' : 'light'];
 
-  const pasoCantidad = (s) => Math.max(1, Math.round(s.cantidad_min / 2)) || 50;
-
-  const toggleServicio = (s) => {
-    setSeleccion((prev) => {
-      const copia = { ...prev };
-      if (copia[s.id]) delete copia[s.id];
-      else copia[s.id] = s.cantidad_min;
-      return copia;
-    });
-  };
-
-  const ajustarCantidad = (s, delta) => {
-    setSeleccion((prev) => ({
-      ...prev,
-      [s.id]: Math.min(s.cantidad_max, Math.max(s.cantidad_min, (prev[s.id] || s.cantidad_min) + delta)),
-    }));
-  };
-
-  const costoBase = useMemo(
-    () =>
-      Object.entries(seleccion).reduce((sum, [id, cant]) => {
-        const s = servicios.find((x) => x.id === Number(id));
-        if (!s) return sum;
-        return sum + (cant / 1000) * parseFloat(s.precio_creditos_por_1000);
-      }, 0),
-    [seleccion, servicios]
-  );
-  const costoConDescuento = Math.round(costoBase * (1 - (wallet.descuento_pct || 0) / 100));
-  const hayItems = Object.keys(seleccion).length > 0;
-  const campanasLanzadas = useMemo(() => historial.filter((h) => h.tipo === 'consumo').length, [historial]);
-
-  // Seguidores impulsan la CUENTA (necesitan el link del perfil); likes/views/etc
-  // impulsan una PUBLICACIÓN puntual (necesitan el link del post). El botón y el
-  // placeholder se adaptan para que quede claro qué link va ahí.
-  const categoriasSeleccion = useMemo(() => {
-    const tipos = Object.keys(seleccion)
-      .map((id) => servicios.find((s) => s.id === Number(id))?.tipo || '')
-      .map((tipo) => (/segui/i.test(tipo) ? 'cuenta' : 'publicacion'));
-    return new Set(tipos);
-  }, [seleccion, servicios]);
-  const modoImpulso = categoriasSeleccion.size === 1 ? [...categoriasSeleccion][0] : null;
-  const textoBotonImpulso = modoImpulso === 'cuenta' ? 'Impulsar cuenta' : modoImpulso === 'publicacion' ? 'Impulsar publicación' : 'Lanzar campaña';
-  const placeholderLink = modoImpulso === 'cuenta' ? 'https://instagram.com/tu_usuario' : modoImpulso === 'publicacion' ? 'https://instagram.com/p/tu_publicacion' : 'https://instagram.com/tu_usuario o el link de tu publicación';
+  // Incrementos redondos: de 1000 en 1000 para servicios que ya arrancan en el
+  // millar (vistas, alcance), de 50 en 50 para el resto — más fácil de ajustar
+  // que saltos irregulares, y sin pasarse nunca del máximo del servicio.
+  const pasoCantidad = (s) => (s && s.cantidad_min >= 1000 ? 1000 : 50);
 
   const serviciosPorPlataforma = useMemo(() => {
     const grupos = {};
@@ -198,14 +162,55 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
     return grupos;
   }, [servicios]);
 
+  const plataformas = useMemo(() => Object.keys(serviciosPorPlataforma), [serviciosPorPlataforma]);
+  const serviciosDePlataforma = serviciosPorPlataforma[plataformaSel] || [];
+  const servicioSel = servicios.find((s) => s.id === servicioSelId) || null;
+
+  // Al cargar el catálogo, arranca con la primera plataforma/servicio disponible.
+  useEffect(() => {
+    if (plataformas.length === 0 || plataformaSel) return;
+    setPlataformaSel(plataformas[0]);
+  }, [plataformas, plataformaSel]);
+
+  // Al cambiar de plataforma, selecciona el primer servicio de esa plataforma.
+  useEffect(() => {
+    if (serviciosDePlataforma.length === 0) return;
+    if (!serviciosDePlataforma.some((s) => s.id === servicioSelId)) {
+      setServicioSelId(serviciosDePlataforma[0].id);
+      setCantidadSel(serviciosDePlataforma[0].cantidad_min);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plataformaSel, servicios]);
+
+  const ajustarCantidadSel = (delta) => {
+    if (!servicioSel) return;
+    setCantidadSel((prev) => Math.min(servicioSel.cantidad_max, Math.max(servicioSel.cantidad_min, prev + delta)));
+  };
+
+  const costoConDescuento = useMemo(() => {
+    if (!servicioSel) return 0;
+    const base = (cantidadSel / 1000) * parseFloat(servicioSel.precio_creditos_por_1000);
+    return Math.max(1, Math.round(base * (1 - (wallet.descuento_pct || 0) / 100)));
+  }, [servicioSel, cantidadSel, wallet.descuento_pct]);
+
+  const hayItems = !!servicioSel;
+  const campanasLanzadas = useMemo(() => historial.filter((h) => h.tipo === 'consumo').length, [historial]);
+
+  // Seguidores impulsan la CUENTA (necesitan el link del perfil); likes/views/etc
+  // impulsan una PUBLICACIÓN puntual (necesitan el link del post). El botón y el
+  // placeholder se adaptan para que quede claro qué link va ahí.
+  const modoImpulso = servicioSel ? (/segui/i.test(servicioSel.tipo) ? 'cuenta' : 'publicacion') : null;
+  const textoBotonImpulso = modoImpulso === 'cuenta' ? 'Impulsar cuenta' : modoImpulso === 'publicacion' ? 'Impulsar publicación' : 'Lanzar campaña';
+  const placeholderLink = modoImpulso === 'cuenta' ? 'https://instagram.com/tu_usuario' : 'https://instagram.com/p/tu_publicacion';
+
   const impulsar = async () => {
+    if (!servicioSel) return;
     setMensaje(''); setEnviando(true);
     try {
-      const items = Object.entries(seleccion).map(([serviceId, cantidad]) => ({ serviceId: Number(serviceId), cantidad }));
-      await api.crearOrden(link, items);
+      await api.crearOrden(link, [{ serviceId: servicioSel.id, cantidad: cantidadSel }]);
       setMensaje('Campaña enviada — la IA ya está distribuyendo la entrega.');
       celebrar();
-      setSeleccion({}); setLink('');
+      setLink('');
       await cargarTodo();
     } catch (err) {
       setMensaje(`Error: ${err.message}`);
@@ -467,64 +472,107 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
               <Cpu size={15} style={{ color: '#EC4899' }} />
               <h2 className="font-display font-bold text-lg">Crear campaña</h2>
             </div>
-            <p className="text-xs mb-4" style={{ color: t.muted }}>La IA calcula el ritmo de entrega ideal según tu perfil y nivel.</p>
+            <p className="text-xs mb-4" style={{ color: t.muted }}>Elige plataforma y servicio — la IA calcula el ritmo de entrega ideal según tu perfil y nivel.</p>
 
-            <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl mb-2" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
-              <Link2 size={15} style={{ color: t.muted }} />
-              <input value={link} onChange={(e) => setLink(e.target.value)} placeholder={placeholderLink} className="bg-transparent outline-none text-sm flex-1" style={{ color: t.text }} />
-            </div>
-            {perfiles.length > 0 && (
-              <div className="flex gap-2 mb-5 flex-wrap">
-                {perfiles.map((p) => (
-                  <button key={p.id} onClick={() => setLink(p.url)} className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full" style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.muted }}>
-                    <Bookmark size={10} /> {p.nombre_usuario || p.url}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {servicios.length === 0 && (
+            {servicios.length === 0 ? (
               <p className="text-xs py-6 text-center" style={{ color: t.muted }}>Todavía no hay servicios activos en el catálogo.</p>
-            )}
-
-            {Object.entries(serviciosPorPlataforma).map(([plataforma, lista]) => (
-              <div key={plataforma} className="mb-5">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: PLATAFORMA_COLOR[plataforma] || '#8B7FB8' }} />
-                  <p className="text-xs font-medium" style={{ color: t.muted }}>{plataforma}</p>
-                </div>
-                <div className="space-y-2">
-                  {lista.map((s) => {
-                    const activo = !!seleccion[s.id];
-                    const paso = pasoCantidad(s);
+            ) : (
+              <>
+                {/* Paso 1: plataforma */}
+                <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+                  {plataformas.map((p) => {
+                    const activa = plataformaSel === p;
                     return (
-                      <motion.div
-                        key={s.id} whileHover={{ scale: activo ? 1 : 1.005 }}
-                        className="flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer"
-                        style={{ background: activo ? GRADIENT_SOFT : t.input, border: activo ? '1px solid #EC4899' : `1px solid ${t.inputBorder}` }}
-                        onClick={() => !activo && toggleServicio(s)}
+                      <motion.button
+                        key={p} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                        onClick={() => { setPlataformaSel(p); setDropdownAbierto(false); }}
+                        className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold"
+                        style={{ background: activa ? GRADIENT : t.input, color: activa ? '#fff' : t.muted, border: activa ? 'none' : `1px solid ${t.inputBorder}` }}
                       >
-                        <div className="flex items-center gap-2.5">
-                          <div onClick={(e) => { e.stopPropagation(); toggleServicio(s); }} className="w-4 h-4 rounded flex items-center justify-center shrink-0" style={{ background: activo ? GRADIENT : 'transparent', border: activo ? 'none' : `1.5px solid ${t.muted}` }}>
-                            {activo && <CheckCircle2 size={12} color="#fff" />}
-                          </div>
-                          <span className="text-sm font-medium">{s.nombre_publico}</span>
-                        </div>
-                        {activo ? (
-                          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                            <button onClick={() => ajustarCantidad(s, -paso)} className="w-6 h-6 rounded-md text-xs" style={{ background: t.surfaceSolid, border: `1px solid ${t.inputBorder}` }}>−</button>
-                            <span className="text-xs font-display font-bold w-16 text-center">{seleccion[s.id].toLocaleString()}</span>
-                            <button onClick={() => ajustarCantidad(s, paso)} className="w-6 h-6 rounded-md text-xs" style={{ background: t.surfaceSolid, border: `1px solid ${t.inputBorder}` }}>+</button>
-                          </div>
-                        ) : (
-                          <span className="text-xs" style={{ color: t.muted }}>{s.precio_creditos_por_1000} ♦/1000</span>
-                        )}
-                      </motion.div>
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: activa ? '#fff' : PLATAFORMA_COLOR[p] || '#8B7FB8' }} />
+                        {p}
+                      </motion.button>
                     );
                   })}
                 </div>
-              </div>
-            ))}
+
+                {/* Paso 2: servicio (dropdown propio — el <select> nativo usa colores del SO y no se lee) */}
+                <div className="relative mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setDropdownAbierto((v) => !v)}
+                    className="w-full flex items-center justify-between text-sm font-medium px-3.5 py-3 rounded-xl outline-none cursor-pointer"
+                    style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.text }}
+                  >
+                    <span>{servicioSel ? `${servicioSel.tipo} · ${servicioSel.nombre_publico}` : 'Elige un servicio'}</span>
+                    <ChevronDown size={16} style={{ color: t.muted, transform: dropdownAbierto ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+                  </button>
+                  <AnimatePresence>
+                    {dropdownAbierto && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+                        className="absolute left-0 right-0 mt-1.5 rounded-xl overflow-hidden z-20 max-h-64 overflow-y-auto"
+                        style={{ background: t.surfaceSolid, border: `1px solid ${t.inputBorder}`, boxShadow: '0 12px 30px rgba(0,0,0,0.4)' }}
+                      >
+                        {serviciosDePlataforma.map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => {
+                              setServicioSelId(s.id);
+                              setCantidadSel(s.cantidad_min);
+                              setDropdownAbierto(false);
+                            }}
+                            className="w-full text-left px-3.5 py-2.5 text-sm"
+                            style={{
+                              background: s.id === servicioSelId ? GRADIENT_SOFT : 'transparent',
+                              color: t.text,
+                              borderBottom: `1px solid ${t.inputBorder}`,
+                            }}
+                          >
+                            <span style={{ color: t.muted }}>{s.tipo} · </span>{s.nombre_publico}
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  <ChevronDown size={16} style={{ color: t.muted, position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                </div>
+
+                {/* Paso 3: cantidad + precio en vivo */}
+                {servicioSel && (
+                  <div className="rounded-xl px-3.5 py-3 mb-3 flex items-center justify-between" style={{ background: GRADIENT_SOFT, border: '1px solid #EC489944' }}>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => ajustarCantidadSel(-pasoCantidad(servicioSel))} className="w-7 h-7 rounded-md text-sm" style={{ background: t.surfaceSolid, border: `1px solid ${t.inputBorder}` }}>−</button>
+                      <span className="text-sm font-display font-bold w-20 text-center">{cantidadSel.toLocaleString()}</span>
+                      <button onClick={() => ajustarCantidadSel(pasoCantidad(servicioSel))} className="w-7 h-7 rounded-md text-sm" style={{ background: t.surfaceSolid, border: `1px solid ${t.inputBorder}` }}>+</button>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px]" style={{ color: t.muted }}>min {servicioSel.cantidad_min.toLocaleString()} · max {servicioSel.cantidad_max.toLocaleString()}</p>
+                      <p className="text-sm font-display font-bold" style={{ color: '#F5A623' }}>{costoConDescuento.toLocaleString()} ♦</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Paso 4: link (según si el servicio impulsa cuenta o publicación) */}
+                <p className="text-[11px] font-medium mb-1.5" style={{ color: t.muted }}>
+                  {modoImpulso === 'cuenta' ? 'Link de tu perfil' : 'Link de tu publicación'}
+                </p>
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl mb-2" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
+                  <Link2 size={15} style={{ color: t.muted }} />
+                  <input value={link} onChange={(e) => setLink(e.target.value)} placeholder={placeholderLink} className="bg-transparent outline-none text-sm flex-1" style={{ color: t.text }} />
+                </div>
+                {perfiles.length > 0 && (
+                  <div className="flex gap-2 mb-5 flex-wrap">
+                    {perfiles.map((p) => (
+                      <button key={p.id} onClick={() => setLink(p.url)} className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full" style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.muted }}>
+                        <Bookmark size={10} /> {p.nombre_usuario || p.url}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
 
             <div className="flex items-center justify-between mb-3 text-sm">
               <span style={{ color: t.muted }}>Total (nivel {wallet.nivel}, -{wallet.descuento_pct}% aplicado)</span>

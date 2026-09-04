@@ -182,7 +182,7 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
                     <div className="flex items-center gap-1.5 flex-1 px-3 py-2 rounded-lg" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
                       <span className="text-xs" style={{ color: t.muted }}>Margen</span>
                       <input value={borrador.margen ?? '3.0'} onChange={(e) => actualizarBorrador(s.id, 'margen', e.target.value)} className="bg-transparent outline-none text-xs w-10" style={{ color: t.text }} />
-                      <span className="text-xs" style={{ color: t.muted }}>x → {Math.round(costo * (isNaN(margen) ? 3 : margen))} ♦/1000</span>
+                      <span className="text-xs" style={{ color: t.muted }}>x → {Math.round(costo * 100 * (isNaN(margen) ? 3 : margen))} ♦/1000</span>
                     </div>
                     <button onClick={() => activarServicio(s)} className="px-4 py-2 rounded-lg text-xs font-semibold" style={{ background: GRADIENT, color: '#fff' }}>
                       Activar
