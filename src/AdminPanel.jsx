@@ -123,12 +123,20 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
             {recargas.map((r) => (
               <motion.div key={r.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl p-4 flex items-center justify-between gap-4" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)' }}>
                 <div className="flex items-center gap-3 min-w-0">
-                  <a href={r.comprobante_url} target="_blank" rel="noreferrer" className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
-                    <ImageIcon size={16} style={{ color: t.muted }} />
-                  </a>
+                  {r.comprobante_url ? (
+                    <a href={r.comprobante_url} target="_blank" rel="noreferrer" className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
+                      <ImageIcon size={16} style={{ color: t.muted }} />
+                    </a>
+                  ) : (
+                    <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }} title="Sin archivo adjunto — revisa el comprobante en WhatsApp">
+                      <ImageIcon size={16} style={{ color: t.muted, opacity: 0.4 }} />
+                    </div>
+                  )}
                   <div className="min-w-0">
                     <p className="text-sm font-semibold truncate">{r.email}</p>
-                    <p className="text-xs" style={{ color: t.muted }}>${r.monto_declarado} · {new Date(r.creado_en).toLocaleString()}</p>
+                    <p className="text-xs" style={{ color: t.muted }}>
+                      ${r.monto_declarado}{r.metodo ? ` · ${r.metodo}` : ''} · {new Date(r.creado_en).toLocaleString()}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">

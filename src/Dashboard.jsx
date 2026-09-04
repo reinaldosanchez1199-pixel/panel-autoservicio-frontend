@@ -421,11 +421,11 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
   };
 
   const enviarRecarga = async () => {
-    if (!paqueteSeleccionado || !comprobante) { setMensaje('Elige un paquete y sube tu comprobante de pago.'); return; }
+    if (!paqueteSeleccionado || !metodoPagoSel) { setMensaje('Elige un paquete y un método de pago.'); return; }
     setMensaje(''); setEnviando(true);
     try {
       const paquete = paquetesRecarga.find((p) => p.id === paqueteSeleccionado);
-      await api.recargaManual(paqueteSeleccionado, comprobante);
+      await api.recargaManual(paqueteSeleccionado, metodoPagoSel, comprobante);
       celebrar();
       setRecargaConfirmada(paquete || true);
       setPaqueteSeleccionado(null); setComprobante(null); setMetodoPagoSel(null);
@@ -610,7 +610,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                 <div className="flex flex-col items-start gap-3">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 size={16} style={{ color: '#10B981' }} />
-                    <p className="text-sm font-semibold">Comprobante recibido, un admin lo revisará pronto.</p>
+                    <p className="text-sm font-semibold">¡Listo! En cuanto confirmemos tu pago por WhatsApp, se acreditan tus créditos.</p>
                   </div>
                   {WHATSAPP_NUMERO && (
                     <a
@@ -690,18 +690,18 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                 <div>
                   {WHATSAPP_NUMERO && (
                     <p className="text-[11px] mb-2 flex items-center gap-1.5" style={{ color: t.muted }}>
-                      <MessageCircle size={12} style={{ color: '#25D366' }} /> Te enviamos los datos de {metodoPagoSel} por WhatsApp. Cuando pagues, sube aquí tu comprobante.
+                      <MessageCircle size={12} style={{ color: '#25D366' }} /> Te enviamos los datos de {metodoPagoSel} por WhatsApp. Cuando pagues, confirma aquí abajo — el comprobante que ya nos mandaste por WhatsApp es suficiente.
                     </p>
                   )}
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                    <label className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg cursor-pointer" style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.muted }}>
-                      <Upload size={13} />
-                      {comprobante ? comprobante.name : 'Subir comprobante de pago'}
+                    <motion.button whileHover={{ scale: 1.03 }} onClick={enviarRecarga} disabled={enviando} className="text-xs font-bold px-4 py-2.5 rounded-full" style={{ background: GRADIENT, color: '#fff', opacity: enviando ? 0.6 : 1 }}>
+                      {enviando ? 'Enviando...' : 'Ya pagué, avisé por WhatsApp'}
+                    </motion.button>
+                    <label className="flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-lg cursor-pointer" style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.muted }}>
+                      <Upload size={11} />
+                      {comprobante ? comprobante.name : 'Adjuntar comprobante (opcional)'}
                       <input type="file" accept="image/*,.pdf" onChange={(e) => setComprobante(e.target.files?.[0] || null)} className="hidden" />
                     </label>
-                    <motion.button whileHover={{ scale: 1.03 }} onClick={enviarRecarga} disabled={enviando} className="text-xs font-bold px-4 py-2 rounded-full" style={{ background: GRADIENT, color: '#fff', opacity: enviando ? 0.6 : 1 }}>
-                      Enviar comprobante
-                    </motion.button>
                     <button onClick={() => setMetodoPagoSel(null)} className="text-[11px]" style={{ color: t.muted }}>
                       Cambiar método
                     </button>

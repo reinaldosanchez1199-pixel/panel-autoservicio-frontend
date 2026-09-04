@@ -112,10 +112,11 @@ export const api = {
   ordenes: () => request('/api/orders'),
   solicitarRefill: (itemId) => request(`/api/orders/items/${itemId}/refill`, { method: 'POST' }),
   repetirEnvio: (itemId) => request(`/api/orders/items/${itemId}/repetir`, { method: 'POST' }),
-  recargaManual: (paqueteId, comprobanteFile) => {
+  recargaManual: (paqueteId, metodo, comprobanteFile) => {
     const form = new FormData();
     form.append('paqueteId', paqueteId);
-    form.append('comprobante', comprobanteFile);
+    form.append('metodo', metodo);
+    if (comprobanteFile) form.append('comprobante', comprobanteFile);
     return request('/api/recargas/manual', { method: 'POST', body: form, isForm: true });
   },
 
