@@ -271,6 +271,8 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
         @keyframes glowPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
         .grad-text { background: ${GRADIENT}; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         input::placeholder { color: ${t.muted}; }
+        .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
       <AnimatedBackground modoOscuro={modoOscuro} />
 
@@ -449,7 +451,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
               <Sparkles size={12} style={{ color: '#EC4899' }} />
               <p className="text-xs font-semibold" style={{ color: t.muted }}>Combos recomendados por IA</p>
             </div>
-            <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
+            <div className="flex gap-2 mb-6 overflow-x-auto pb-1 no-scrollbar">
               {bundles.map((b) => (
                 <motion.button key={b.id} whileHover={{ y: -3 }} onClick={() => pedirBundle(b.id)} className="shrink-0 rounded-2xl p-3.5 text-left min-w-[220px]" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(10px)' }}>
                   <div className="flex items-center gap-1.5 mb-1">
@@ -479,7 +481,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
             ) : (
               <>
                 {/* Paso 1: plataforma */}
-                <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+                <div className="flex gap-2 mb-4 overflow-x-auto pb-1 no-scrollbar">
                   {plataformas.map((p) => {
                     const activa = plataformaSel === p;
                     return (
