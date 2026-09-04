@@ -10,6 +10,7 @@ import AnimatedBackground from './AnimatedBackground';
 import AnimatedNumber from './AnimatedNumber';
 import AIChat from './AIChat';
 import LevelProgress from './LevelProgress';
+import Cuenta from './Cuenta';
 import Pedidos from './Pedidos';
 import { theme, GRADIENT, GRADIENT_SOFT, GOLD_GRADIENT, FONT_IMPORT } from './theme';
 
@@ -224,6 +225,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
   const [enviando, setEnviando] = useState(false);
   const [mensaje, setMensaje] = useState('');
 
+  const [me, setMe] = useState(null);
   const [wallet, setWallet] = useState({ saldo: 0, nivel: '', descuento_pct: 0 });
   const [servicios, setServicios] = useState([]);
   const [bundles, setBundles] = useState([]);
@@ -240,10 +242,10 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
 
   const cargarTodo = useCallback(async () => {
     try {
-      const [w, s, b, p, a, pr, nv] = await Promise.all([
-        api.wallet(), api.services(), api.bundles(), api.perfiles(), api.activity(), api.paquetesRecarga(), api.niveles(),
+      const [me_, w, s, b, p, a, pr, nv] = await Promise.all([
+        api.me(), api.wallet(), api.services(), api.bundles(), api.perfiles(), api.activity(), api.paquetesRecarga(), api.niveles(),
       ]);
-      setWallet(w); setServicios(s); setBundles(b); setPerfiles(p); setHistorial(a); setPaquetesRecarga(pr); setNiveles(nv);
+      setMe(me_); setWallet(w); setServicios(s); setBundles(b); setPerfiles(p); setHistorial(a); setPaquetesRecarga(pr); setNiveles(nv);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -286,6 +288,16 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
     setMensaje('Envío repetido — ya va en camino.');
     await cargarTodo();
     setOrdenes(await api.ordenes());
+  };
+
+  const agregarPerfil = async (plataforma, nombreUsuario, url) => {
+    await api.crearPerfil(plataforma, nombreUsuario, url);
+    setPerfiles(await api.perfiles());
+  };
+
+  const borrarPerfil = async (id) => {
+    await api.borrarPerfil(id);
+    setPerfiles((prev) => prev.filter((p) => p.id !== id));
   };
 
   const t = theme[modoOscuro ? 'dark' : 'light'];
@@ -560,6 +572,8 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
 
         {navActivo === 'pedidos' ? (
           <Pedidos ordenes={ordenes} cargandoOrdenes={cargandoOrdenes} onRefill={solicitarRefillItem} onRepetir={repetirEnvioItem} t={t} />
+        ) : navActivo === 'cuenta' ? (
+          <Cuenta me={me} wallet={wallet} plataformas={plataformas} perfiles={perfiles} onAgregarPerfil={agregarPerfil} onBorrarPerfil={borrarPerfil} t={t} />
         ) : (
         <>
         <AnimatePresence>

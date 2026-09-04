@@ -96,6 +96,7 @@ export const api = {
   loginGoogle: (credential) => request('/auth/google', { method: 'POST', body: { credential } }),
 
   // Cliente
+  me: () => request('/api/me'),
   wallet: () => request('/api/wallet'),
   services: () => request('/api/services'),
   bundles: () => request('/api/bundles'),
