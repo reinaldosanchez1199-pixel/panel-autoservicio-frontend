@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import {
   Sparkles, Link2, ChevronRight, ChevronDown, CheckCircle2, Clock, Sun, Moon, Star, Bookmark, Rocket,
-  Home, Package, CreditCard, Activity, User, Menu, X, LogOut, Shield, Cpu, Upload, Zap, Flame, Gem, Crown,
+  Home, Package, CreditCard, Activity, User, Menu, X, LogOut, Shield, Cpu, Upload, Zap, Flame, Gem, Crown, Trophy, MessageCircle,
 } from 'lucide-react';
 import { api } from './api';
 import AnimatedBackground from './AnimatedBackground';
@@ -13,10 +13,43 @@ import LevelProgress from './LevelProgress';
 import Pedidos from './Pedidos';
 import { theme, GRADIENT, GRADIENT_SOFT, GOLD_GRADIENT, FONT_IMPORT } from './theme';
 
-const TIER_ICONOS = [Zap, Flame, Gem, Crown];
+const TIER_ICONOS = [Zap, Flame, Gem, Crown, Trophy];
 function celebrar() {
   confetti({ particleCount: 90, spread: 75, origin: { y: 0.7 }, colors: ['#7C3AED', '#EC4899', '#06B6D4', '#F5C542'] });
 }
+
+// Número de WhatsApp Business, en formato E.164 sin "+" (ej. "18091234567").
+// Se define por entorno para no tocar código si cambia el número.
+const WHATSAPP_NUMERO = import.meta.env.VITE_WHATSAPP_NUMERO || '';
+function enlaceWhatsApp(mensaje) {
+  return `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(mensaje)}`;
+}
+
+// Métodos de pago "manuales" — requieren enviar datos sensibles (cuenta, correo,
+// wallet, o un link de pago) que preferimos NO mostrar públicos en la web. Para
+// estos, el panel pide los datos por WhatsApp en privado. "Tarjeta" también va
+// por aquí a propósito: el link de pago se manda camuflado por WhatsApp, no se
+// genera desde el panel (evita que la pasarela vea de qué es la venta).
+const MEDIOS_PAGO_MANUAL = ['Tarjeta', 'Zelle', 'PayPal', 'Criptomonedas', 'Banesco Panamá', 'Yappy', 'Bancolombia', 'Nequi'];
+
+// Explica en corto y en humano qué hace cada tipo de servicio — para el cliente
+// nuevo que nunca ha usado un panel y no sabe qué significa "Alcance + Impresiones".
+const DESCRIPCIONES_TIPO = {
+  Seguidores: 'Más gente viendo tu perfil desde ya — se ve más grande y confiable 🚀',
+  Likes: 'Esa primera ola de likes que hace que el algoritmo empiece a mover tu publicación 🔥',
+  Vistas: 'Más reproducciones = más credibilidad y más impulso para llegar a nuevas personas 👀',
+  Guardados: 'Cuando guardan tu post, la plataforma entiende que vale la pena mostrarlo a más gente 📌',
+  Compartidos: 'Cada compartido lleva tu contenido a círculos nuevos que todavía no te conocen 🔁',
+  Reposts: 'Tu contenido saltando a más perfiles — nuevas audiencias descubriéndote 🔁',
+  'Alcance + Impresiones': 'Vamos a darle mucho más posicionamiento a tu publicación 😉',
+};
+
+// Espectadores para transmisiones en vivo — no es un servicio autoservicio
+// (necesita coordinarse en tiempo real con el cliente), así que en vez de un
+// precio y cantidad, se muestra como una opción especial que lleva a WhatsApp.
+const ID_EN_VIVO = 'en-vivo';
+const PLATAFORMAS_CON_EN_VIVO = ['Facebook', 'Instagram', 'TikTok', 'YouTube'];
+const SERVICIO_EN_VIVO = { id: ID_EN_VIVO, tipo: '🔴 Espectadores en vivo', nombre_publico: '🔴 Espectadores en vivo' };
 
 const NAV_ITEMS = [
   { id: 'inicio', label: 'Inicio', icon: Home },
@@ -41,6 +74,11 @@ const BANDAS_DESCUENTO_CANTIDAD = {
     { hasta: Infinity, tramo: 5000, pct: 7 },
   ],
   Vistas: [
+    { hasta: 20000, tramo: 4000, pct: 3 },
+    { hasta: 50000, tramo: 20000, pct: 5 },
+    { hasta: Infinity, tramo: 50000, pct: 7 },
+  ],
+  'Alcance + Impresiones': [
     { hasta: 20000, tramo: 4000, pct: 3 },
     { hasta: 50000, tramo: 20000, pct: 5 },
     { hasta: Infinity, tramo: 50000, pct: 7 },
@@ -97,6 +135,12 @@ function proximoEscalon(tipo, cantidad) {
 function requiereCompensacion(tipo) {
   return tipo === 'Seguidores';
 }
+
+// El valor interno sigue siendo "Twitter" (coincide con la columna plataforma
+// en la base de datos y con SERVICIOS_SEGUIDOS) — solo cambia lo que se le
+// muestra al cliente, ya que hoy la plataforma se llama X.
+const ETIQUETA_PLATAFORMA = { Twitter: 'Twitter (X)' };
+const etiquetaPlataforma = (p) => ETIQUETA_PLATAFORMA[p] || p;
 
 const PLATAFORMA_COLOR = {
   Instagram: '#EC4899',
@@ -174,6 +218,8 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
   const [niveles, setNiveles] = useState([]);
   const [comprobante, setComprobante] = useState(null);
   const [paqueteSeleccionado, setPaqueteSeleccionado] = useState(null);
+  const [metodoPagoSel, setMetodoPagoSel] = useState(null);
+  const [recargaConfirmada, setRecargaConfirmada] = useState(null);
   const [ordenes, setOrdenes] = useState(null); // null = aún no cargadas
   const [cargandoOrdenes, setCargandoOrdenes] = useState(false);
 
@@ -234,8 +280,12 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
   }, [servicios]);
 
   const plataformas = useMemo(() => Object.keys(serviciosPorPlataforma), [serviciosPorPlataforma]);
-  const serviciosDePlataforma = serviciosPorPlataforma[plataformaSel] || [];
+  const serviciosDePlataforma = useMemo(() => {
+    const base = serviciosPorPlataforma[plataformaSel] || [];
+    return PLATAFORMAS_CON_EN_VIVO.includes(plataformaSel) ? [...base, SERVICIO_EN_VIVO] : base;
+  }, [serviciosPorPlataforma, plataformaSel]);
   const servicioSel = servicios.find((s) => s.id === servicioSelId) || null;
+  const esServicioEnVivo = servicioSelId === ID_EN_VIVO;
 
   // Al cargar el catálogo, arranca con la primera plataforma/servicio disponible.
   useEffect(() => {
@@ -315,10 +365,11 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
     if (!paqueteSeleccionado || !comprobante) { setMensaje('Elige un paquete y sube tu comprobante de pago.'); return; }
     setMensaje(''); setEnviando(true);
     try {
+      const paquete = paquetesRecarga.find((p) => p.id === paqueteSeleccionado);
       await api.recargaManual(paqueteSeleccionado, comprobante);
-      setMensaje('Recarga enviada, un admin la revisará pronto.');
       celebrar();
-      setPaqueteSeleccionado(null); setComprobante(null); setMostrarRecarga(false);
+      setRecargaConfirmada(paquete || true);
+      setPaqueteSeleccionado(null); setComprobante(null); setMetodoPagoSel(null);
     } catch (err) {
       setMensaje(`Error: ${err.message}`);
     } finally {
@@ -403,6 +454,17 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
         </nav>
         <div className="mt-auto flex flex-col gap-3">
           <LevelProgress consumido={Number(wallet.consumido)} nivelActual={wallet.nivel} niveles={niveles} modoOscuro={modoOscuro} />
+          {WHATSAPP_NUMERO && (
+            <a
+              href={enlaceWhatsApp('Hola! Quisiera más información sobre automatización de interacciones (auto-likes, auto-vistas, etc.) en Viralizame.')}
+              target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-medium"
+              style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: '#6EE7B7' }}
+            >
+              <MessageCircle size={14} />
+              <span>¿Automatización o ayuda? <b>Escríbenos</b></span>
+            </a>
+          )}
           <button onClick={onCerrarSesion} className="flex items-center gap-2 text-xs font-medium px-1" style={{ color: t.muted }}>
             <LogOut size={14} /> Cerrar sesión
           </button>
@@ -465,7 +527,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
               <Star size={13} style={{ color: '#F5A623' }} />
               <span className="text-xs font-bold" style={{ color: '#F5A623' }}>{wallet.nivel} · -{wallet.descuento_pct}%</span>
             </div>
-            <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }} onClick={() => setMostrarRecarga(!mostrarRecarga)} className="text-xs font-bold px-5 py-2.5 rounded-full" style={{ background: GRADIENT, color: '#fff', boxShadow: '0 6px 20px rgba(124,58,237,0.35)' }}>
+            <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }} onClick={() => { if (mostrarRecarga) { setRecargaConfirmada(null); setMetodoPagoSel(null); setPaqueteSeleccionado(null); } setMostrarRecarga(!mostrarRecarga); }} className="text-xs font-bold px-5 py-2.5 rounded-full" style={{ background: GRADIENT, color: '#fff', boxShadow: '0 6px 20px rgba(124,58,237,0.35)' }}>
               Recargar
             </motion.button>
           </div>
@@ -478,6 +540,32 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
         <AnimatePresence>
           {mostrarRecarga && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="rounded-2xl p-4 mb-6 overflow-hidden" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)' }}>
+              {recargaConfirmada ? (
+                <div className="flex flex-col items-start gap-3">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 size={16} style={{ color: '#10B981' }} />
+                    <p className="text-sm font-semibold">Comprobante recibido, un admin lo revisará pronto.</p>
+                  </div>
+                  {WHATSAPP_NUMERO && (
+                    <a
+                      href={enlaceWhatsApp(
+                        recargaConfirmada?.precio_usd
+                          ? `Hola! Acabo de enviar el comprobante de una recarga de $${recargaConfirmada.precio_usd} USD (${Number(recargaConfirmada.creditos_otorgados).toLocaleString()} Viral Credits) en Viralizame. ¿Me confirman cuando la acrediten?`
+                          : 'Hola! Acabo de enviar el comprobante de una recarga en Viralizame. ¿Me confirman cuando la acrediten?'
+                      )}
+                      target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-xs font-bold px-4 py-2.5 rounded-full"
+                      style={{ background: '#25D366', color: '#08331C' }}
+                    >
+                      <MessageCircle size={14} /> Avisar por WhatsApp (más rápido)
+                    </a>
+                  )}
+                  <button onClick={() => { setRecargaConfirmada(null); setMostrarRecarga(false); }} className="text-xs font-medium" style={{ color: t.muted }}>
+                    Cerrar
+                  </button>
+                </div>
+              ) : (
+              <>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
                 {paquetesRecarga.map((p, i) => {
                   const Icono = TIER_ICONOS[Math.min(i, TIER_ICONOS.length - 1)];
@@ -486,7 +574,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                   return (
                     <motion.button
                       key={p.id} whileHover={{ y: -3, scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                      onClick={() => setPaqueteSeleccionado(p.id)}
+                      onClick={() => { setPaqueteSeleccionado(p.id); setMetodoPagoSel(null); }}
                       className="rounded-xl p-3 text-left relative overflow-hidden"
                       style={{
                         background: activo ? GRADIENT_SOFT : t.input,
@@ -505,17 +593,51 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                   );
                 })}
               </div>
-              {paqueteSeleccionado && (
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                  <label className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg cursor-pointer" style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.muted }}>
-                    <Upload size={13} />
-                    {comprobante ? comprobante.name : 'Subir comprobante de pago'}
-                    <input type="file" accept="image/*,.pdf" onChange={(e) => setComprobante(e.target.files?.[0] || null)} className="hidden" />
-                  </label>
-                  <motion.button whileHover={{ scale: 1.03 }} onClick={enviarRecarga} disabled={enviando} className="text-xs font-bold px-4 py-2 rounded-full" style={{ background: GRADIENT, color: '#fff', opacity: enviando ? 0.6 : 1 }}>
-                    Enviar comprobante
-                  </motion.button>
+              {paqueteSeleccionado && !metodoPagoSel && (
+                <div>
+                  <p className="text-xs font-semibold mb-2" style={{ color: t.muted }}>¿Cómo vas a pagar?</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {MEDIOS_PAGO_MANUAL.map((medio) => {
+                      const paquete = paquetesRecarga.find((p) => p.id === paqueteSeleccionado);
+                      return (
+                        <a
+                          key={medio}
+                          href={WHATSAPP_NUMERO ? enlaceWhatsApp(`Hola! Quiero recargar $${paquete?.precio_usd} USD (${Number(paquete?.creditos_otorgados || 0).toLocaleString()} Viral Credits) en Viralizame vía ${medio}. ¿Me pasan los datos para pagar?`) : undefined}
+                          target="_blank" rel="noopener noreferrer"
+                          onClick={() => setMetodoPagoSel(medio)}
+                          className="text-xs font-medium px-3 py-1.5 rounded-full cursor-pointer"
+                          style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}
+                        >
+                          {medio}
+                        </a>
+                      );
+                    })}
+                  </div>
                 </div>
+              )}
+              {paqueteSeleccionado && metodoPagoSel && (
+                <div>
+                  {WHATSAPP_NUMERO && (
+                    <p className="text-[11px] mb-2 flex items-center gap-1.5" style={{ color: t.muted }}>
+                      <MessageCircle size={12} style={{ color: '#25D366' }} /> Te enviamos los datos de {metodoPagoSel} por WhatsApp. Cuando pagues, sube aquí tu comprobante.
+                    </p>
+                  )}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                    <label className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg cursor-pointer" style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.muted }}>
+                      <Upload size={13} />
+                      {comprobante ? comprobante.name : 'Subir comprobante de pago'}
+                      <input type="file" accept="image/*,.pdf" onChange={(e) => setComprobante(e.target.files?.[0] || null)} className="hidden" />
+                    </label>
+                    <motion.button whileHover={{ scale: 1.03 }} onClick={enviarRecarga} disabled={enviando} className="text-xs font-bold px-4 py-2 rounded-full" style={{ background: GRADIENT, color: '#fff', opacity: enviando ? 0.6 : 1 }}>
+                      Enviar comprobante
+                    </motion.button>
+                    <button onClick={() => setMetodoPagoSel(null)} className="text-[11px]" style={{ color: t.muted }}>
+                      Cambiar método
+                    </button>
+                  </div>
+                </div>
+              )}
+              </>
               )}
             </motion.div>
           )}
@@ -568,7 +690,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                         style={{ background: activa ? GRADIENT : t.input, color: activa ? '#fff' : t.muted, border: activa ? 'none' : `1px solid ${t.inputBorder}` }}
                       >
                         <span className="w-1.5 h-1.5 rounded-full" style={{ background: activa ? '#fff' : PLATAFORMA_COLOR[p] || '#8B7FB8' }} />
-                        {p}
+                        {etiquetaPlataforma(p)}
                       </motion.button>
                     );
                   })}
@@ -582,7 +704,15 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                     className="w-full flex items-center justify-between text-sm font-medium px-3.5 py-3 rounded-xl outline-none cursor-pointer"
                     style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.text }}
                   >
-                    <span>{servicioSel ? `${servicioSel.tipo} · ${servicioSel.nombre_publico}` : 'Elige un servicio'}</span>
+                    <span>
+                      {esServicioEnVivo
+                        ? SERVICIO_EN_VIVO.nombre_publico
+                        : servicioSel
+                        ? servicioSel.tipo === servicioSel.nombre_publico
+                          ? servicioSel.nombre_publico
+                          : `${servicioSel.tipo} · ${servicioSel.nombre_publico}`
+                        : 'Elige un servicio'}
+                    </span>
                     <ChevronDown size={16} style={{ color: t.muted, transform: dropdownAbierto ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
                   </button>
                   <AnimatePresence>
@@ -598,7 +728,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                             type="button"
                             onClick={() => {
                               setServicioSelId(s.id);
-                              setCantidadSel(s.cantidad_min);
+                              setCantidadSel(s.cantidad_min || 0);
                               setDropdownAbierto(false);
                             }}
                             className="w-full text-left px-3.5 py-2.5 text-sm"
@@ -608,7 +738,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                               borderBottom: `1px solid ${t.inputBorder}`,
                             }}
                           >
-                            <span style={{ color: t.muted }}>{s.tipo} · </span>{s.nombre_publico}
+                            {s.tipo === s.nombre_publico ? s.nombre_publico : (<><span style={{ color: t.muted }}>{s.tipo} · </span>{s.nombre_publico}</>)}
                           </button>
                         ))}
                       </motion.div>
@@ -616,6 +746,17 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                   </AnimatePresence>
                   <ChevronDown size={16} style={{ color: t.muted, position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                 </div>
+
+                {servicioSel && DESCRIPCIONES_TIPO[servicioSel.tipo] && (
+                  <motion.p
+                    key={servicioSel.tipo}
+                    initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                    className="text-[11px] mb-3 px-1"
+                    style={{ color: t.muted }}
+                  >
+                    {DESCRIPCIONES_TIPO[servicioSel.tipo]}
+                  </motion.p>
+                )}
 
                 {/* Paso 3: cantidad + precio en vivo */}
                 {servicioSel && (
@@ -655,41 +796,66 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                   );
                 })()}
 
-                {/* Paso 4: link (según si el servicio impulsa cuenta o publicación) */}
-                <p className="text-[11px] font-medium mb-1.5" style={{ color: t.muted }}>
-                  {modoImpulso === 'cuenta' ? 'Link de tu perfil' : 'Link de tu publicación'}
-                </p>
-                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl mb-2" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
-                  <Link2 size={15} style={{ color: t.muted }} />
-                  <input value={link} onChange={(e) => setLink(e.target.value)} placeholder={placeholderLink} className="bg-transparent outline-none text-sm flex-1" style={{ color: t.text }} />
-                </div>
-                {perfiles.length > 0 && (
-                  <div className="flex gap-2 mb-5 flex-wrap">
-                    {perfiles.map((p) => (
-                      <button key={p.id} onClick={() => setLink(p.url)} className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full" style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.muted }}>
-                        <Bookmark size={10} /> {p.nombre_usuario || p.url}
-                      </button>
-                    ))}
+                {esServicioEnVivo ? (
+                  <div className="rounded-xl p-4 mb-2" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)' }}>
+                    <p className="text-xs font-semibold mb-1.5">🔴 Espectadores para transmisiones en vivo</p>
+                    <p className="text-[11px] mb-3" style={{ color: t.muted }}>
+                      Este servicio necesita coordinarse contigo en el momento exacto de tu transmisión, así que lo armamos juntos por WhatsApp en vez de dejarlo en autoservicio.
+                    </p>
+                    {WHATSAPP_NUMERO && (
+                      <a
+                        href={enlaceWhatsApp(`Hola! Quiero espectadores para una transmisión en vivo de ${etiquetaPlataforma(plataformaSel)}. ¿Cómo lo coordinamos?`)}
+                        target="_blank" rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-xs font-bold px-4 py-2.5 rounded-full"
+                        style={{ background: '#25D366', color: '#08331C' }}
+                      >
+                        <MessageCircle size={14} /> Coordinar por WhatsApp
+                      </a>
+                    )}
                   </div>
+                ) : (
+                  <>
+                  {/* Paso 4: link (según si el servicio impulsa cuenta o publicación) */}
+                  <p className="text-[11px] font-medium mb-1.5" style={{ color: t.muted }}>
+                    {modoImpulso === 'cuenta' ? 'Link de tu perfil' : 'Link de tu publicación'}
+                  </p>
+                  <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl mb-2" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
+                    <Link2 size={15} style={{ color: t.muted }} />
+                    <input value={link} onChange={(e) => setLink(e.target.value)} placeholder={placeholderLink} className="bg-transparent outline-none text-sm flex-1" style={{ color: t.text }} />
+                  </div>
+                  {perfiles.length > 0 && (
+                    <div className="flex gap-2 mb-5 flex-wrap">
+                      {perfiles.map((p) => (
+                        <button key={p.id} onClick={() => setLink(p.url)} className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full" style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.muted }}>
+                          <Bookmark size={10} /> {p.nombre_usuario || p.url}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  </>
                 )}
               </>
             )}
 
-            <div className="flex items-center justify-between mb-3 text-sm">
-              <span style={{ color: t.muted }}>Total (-{descuentoTotalPct}% aplicado{descuentoCantidadPct > 0 ? `: ${wallet.descuento_pct}% nivel + ${descuentoCantidadPct}% volumen` : ''})</span>
-              <span className="font-display font-bold grad-text">{costoConDescuento.toLocaleString()} ♦</span>
-            </div>
+            {!esServicioEnVivo && (
+              <>
+              <div className="flex items-center justify-between mb-3 text-sm">
+                <span style={{ color: t.muted }}>Total (-{descuentoTotalPct}% aplicado{descuentoCantidadPct > 0 ? `: ${wallet.descuento_pct}% nivel + ${descuentoCantidadPct}% volumen` : ''})</span>
+                <span className="font-display font-bold grad-text">{costoConDescuento.toLocaleString()} ♦</span>
+              </div>
 
-            <motion.button
-              whileHover={hayItems && link ? { scale: 1.015 } : {}}
-              whileTap={hayItems && link ? { scale: 0.985 } : {}}
-              onClick={impulsar}
-              disabled={!hayItems || !link || enviando}
-              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-display font-bold text-sm"
-              style={{ background: hayItems && link ? GRADIENT : t.input, color: hayItems && link ? '#fff' : t.muted, opacity: enviando ? 0.6 : 1, boxShadow: hayItems && link ? '0 8px 30px rgba(124,58,237,0.35)' : 'none' }}
-            >
-              <Rocket size={16} /> {enviando ? 'Enviando...' : textoBotonImpulso} <ChevronRight size={16} />
-            </motion.button>
+              <motion.button
+                whileHover={hayItems && link ? { scale: 1.015 } : {}}
+                whileTap={hayItems && link ? { scale: 0.985 } : {}}
+                onClick={impulsar}
+                disabled={!hayItems || !link || enviando}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-display font-bold text-sm"
+                style={{ background: hayItems && link ? GRADIENT : t.input, color: hayItems && link ? '#fff' : t.muted, opacity: enviando ? 0.6 : 1, boxShadow: hayItems && link ? '0 8px 30px rgba(124,58,237,0.35)' : 'none' }}
+              >
+                <Rocket size={16} /> {enviando ? 'Enviando...' : textoBotonImpulso} <ChevronRight size={16} />
+              </motion.button>
+              </>
+            )}
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.5 }} className="lg:col-span-2 rounded-3xl p-6" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)' }}>

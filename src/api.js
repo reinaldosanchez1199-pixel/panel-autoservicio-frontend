@@ -7,11 +7,11 @@ const TOKEN_KEY = 'viralizame_token';
 
 // Chat con Viralizame IA — SSE manual (POST + ReadableStream, no EventSource
 // porque necesitamos mandar body). onDelta(texto) se llama por cada trozo.
-export async function chatIAStream(mensaje, historial, onDelta) {
+export async function chatIAStream(mensaje, historial, onDelta, imagen = null) {
   const resp = await fetch(`${BASE_URL}/ia/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mensaje, historial }),
+    body: JSON.stringify({ mensaje, historial, imagen }),
   });
   if (!resp.ok || !resp.body) {
     const data = await resp.json().catch(() => null);

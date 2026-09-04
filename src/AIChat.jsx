@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, X, Send, Cpu } from 'lucide-react';
+import { Sparkles, X, Send, Cpu, Paperclip } from 'lucide-react';
 import { chatIAStream } from './api';
 import { theme, GRADIENT } from './theme';
 
-const SALUDO = '¡Hola! Soy Viralizame IA 👋 Cuéntame sobre tu perfil o publicación y te ayudo a potenciarla.';
+const SALUDO = '¡Hola! Soy Viralizame IA 👋 Cuéntame sobre tu perfil o publicación (o comparte una captura) y te ayudo a potenciarla.';
+const TIPOS_IMAGEN_PERMITIDOS = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+const TAMANO_MAX_IMAGEN = 5 * 1024 * 1024; // 5MB, suficiente para una captura de pantalla
 
 export default function AIChat() {
   const [abierto, setAbierto] = useState(false);
@@ -12,8 +14,32 @@ export default function AIChat() {
   const [input, setInput] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
+  const [imagenAdjunta, setImagenAdjunta] = useState(null); // { mediaType, data, previewUrl }
   const scrollRef = useRef(null);
+  const fileInputRef = useRef(null);
   const t = theme.dark;
+
+  const elegirImagen = (e) => {
+    const archivo = e.target.files?.[0];
+    e.target.value = ''; // permite adjuntar la misma imagen de nuevo si la quitan y la vuelven a elegir
+    if (!archivo) return;
+    if (!TIPOS_IMAGEN_PERMITIDOS.includes(archivo.type)) {
+      setError('Formato no soportado — usa PNG, JPG, WEBP o GIF.');
+      return;
+    }
+    if (archivo.size > TAMANO_MAX_IMAGEN) {
+      setError('La imagen pesa demasiado (máximo 5MB).');
+      return;
+    }
+    setError('');
+    const lector = new FileReader();
+    lector.onload = () => {
+      const previewUrl = lector.result;
+      const data = previewUrl.split(',')[1];
+      setImagenAdjunta({ mediaType: archivo.type, data, previewUrl });
+    };
+    lector.readAsDataURL(archivo);
+  };
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -22,22 +48,33 @@ export default function AIChat() {
   const enviar = async (e) => {
     e.preventDefault();
     const texto = input.trim();
-    if (!texto || enviando) return;
+    if ((!texto && !imagenAdjunta) || enviando) return;
     setError('');
     setInput('');
+    const imagen = imagenAdjunta;
+    setImagenAdjunta(null);
 
     const historial = mensajes.map(({ role, content }) => ({ role, content }));
-    setMensajes((m) => [...m, { role: 'user', content: texto }, { role: 'assistant', content: '' }]);
+    setMensajes((m) => [
+      ...m,
+      { role: 'user', content: texto, imagenPreview: imagen?.previewUrl },
+      { role: 'assistant', content: '' },
+    ]);
     setEnviando(true);
 
     try {
-      await chatIAStream(texto, historial, (delta) => {
-        setMensajes((m) => {
-          const copia = [...m];
-          copia[copia.length - 1] = { role: 'assistant', content: copia[copia.length - 1].content + delta };
-          return copia;
-        });
-      });
+      await chatIAStream(
+        texto,
+        historial,
+        (delta) => {
+          setMensajes((m) => {
+            const copia = [...m];
+            copia[copia.length - 1] = { role: 'assistant', content: copia[copia.length - 1].content + delta };
+            return copia;
+          });
+        },
+        imagen ? { mediaType: imagen.mediaType, data: imagen.data } : null
+      );
     } catch (err) {
       setError(err.message);
       setMensajes((m) => m.slice(0, -1)); // quita la burbuja vacía del asistente
@@ -79,6 +116,9 @@ export default function AIChat() {
                         : { background: t.input, color: t.text, border: `1px solid ${t.inputBorder}` }
                     }
                   >
+                    {m.imagenPreview && (
+                      <img src={m.imagenPreview} alt="Captura enviada" className="rounded-lg mb-1.5 max-h-32 object-cover" />
+                    )}
                     {m.content || <span style={{ color: t.muted }}>...</span>}
                   </div>
                 </div>
@@ -86,15 +126,41 @@ export default function AIChat() {
               {error && <p className="text-[11px] text-center" style={{ color: '#FCA5C7' }}>{error}</p>}
             </div>
 
+            {imagenAdjunta && (
+              <div className="flex items-center gap-2 px-3 pt-2">
+                <div className="relative">
+                  <img src={imagenAdjunta.previewUrl} alt="Vista previa" className="w-10 h-10 rounded-lg object-cover" style={{ border: `1px solid ${t.inputBorder}` }} />
+                  <button
+                    type="button"
+                    onClick={() => setImagenAdjunta(null)}
+                    className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center"
+                    style={{ background: t.surfaceSolid, border: `1px solid ${t.inputBorder}` }}
+                  >
+                    <X size={9} style={{ color: t.muted }} />
+                  </button>
+                </div>
+                <span className="text-[10px]" style={{ color: t.muted }}>Se enviará con tu mensaje</span>
+              </div>
+            )}
             <form onSubmit={enviar} className="flex items-center gap-2 p-3" style={{ borderTop: `1px solid ${t.border}` }}>
+              <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={elegirImagen} className="hidden" />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}
+                title="Adjuntar una captura de tu perfil o publicación"
+              >
+                <Paperclip size={14} style={{ color: t.muted }} />
+              </button>
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Escribe tu pregunta..."
+                placeholder={imagenAdjunta ? 'Cuéntame sobre esta captura (opcional)...' : 'Escribe tu pregunta...'}
                 className="flex-1 px-3 py-2.5 rounded-xl text-xs outline-none"
                 style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.text }}
               />
-              <button type="submit" disabled={enviando || !input.trim()} className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: GRADIENT, opacity: enviando || !input.trim() ? 0.5 : 1 }}>
+              <button type="submit" disabled={enviando || (!input.trim() && !imagenAdjunta)} className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: GRADIENT, opacity: enviando || (!input.trim() && !imagenAdjunta) ? 0.5 : 1 }}>
                 <Send size={14} color="#fff" />
               </button>
             </form>

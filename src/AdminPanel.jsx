@@ -168,7 +168,7 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
                       style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.text }}
                     >
                       <option value="">Elegir plataforma...</option>
-                      <option>Instagram</option><option>TikTok</option><option>YouTube</option><option>Facebook</option><option>Twitter</option>
+                      <option value="Instagram">Instagram</option><option value="TikTok">TikTok</option><option value="YouTube">YouTube</option><option value="Facebook">Facebook</option><option value="Twitter">Twitter (X)</option>
                     </select>
                     <input
                       value={borrador.nombrePublico || ''}

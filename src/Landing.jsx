@@ -59,7 +59,7 @@ const FAQS = [
   },
   {
     q: '¿Qué plataformas soportan?',
-    a: 'Instagram, TikTok, YouTube, Facebook y Twitter/X de forma directa. Otras plataformas (Spotify, Twitch, LinkedIn, Telegram) están disponibles bajo pedido.',
+    a: 'Instagram, TikTok, YouTube, Facebook y Twitter (X) de forma directa. Otras plataformas (Spotify, Twitch, LinkedIn, Telegram) están disponibles bajo pedido.',
   },
 ];
 
@@ -119,7 +119,7 @@ export default function Landing({ onEntrar }) {
             Impulsa tu presencia con <span className="grad-text">inteligencia artificial</span>
           </motion.h1>
           <motion.p initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="text-base sm:text-lg mb-8" style={{ color: t.muted }}>
-            Convierte Viral Credits en alcance real para Instagram, TikTok, YouTube, Facebook y Twitter/X.
+            Convierte Viral Credits en alcance real para Instagram, TikTok, YouTube, Facebook y Twitter (X).
             Nuestro motor de IA calcula el ritmo de entrega ideal — sin contraseñas, sin depender de nadie más que de ti.
           </motion.p>
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center justify-center gap-3">
