@@ -293,7 +293,7 @@ export default function Impulsar({ servicios, wallet, t, onCrear, onCrearLote })
           <h2 className="font-display font-bold text-lg">Impulsar en lote</h2>
         </div>
         <p className="text-xs mb-4" style={{ color: t.muted }}>
-          Impulsa varias publicaciones o cuentas a la vez. Solo llena las filas que necesites, el resto se ignoran.
+          Combina likes, guardados, compartidos, repost y reproducciones en una sola publicación, o impulsa varias publicaciones y cuentas al mismo tiempo — solo llena las filas que necesites, el resto se ignoran.
         </p>
 
         <div className="flex gap-2 mb-5">

@@ -64,7 +64,7 @@ function RepetirEnvioButton({ item, onRepetir, t }) {
     return (
       <div className="flex items-center gap-1.5">
         <span className="text-[10px]" style={{ color: t.muted }}>
-          ¿Repetir? Se descontarán ~{Number(item.costo_creditos).toLocaleString()} ♦
+          ¿Repetir? Se descontarán ~{Math.round(Number(item.costo_creditos)).toLocaleString()} ♦
         </span>
         <button
           disabled={enviando}
@@ -144,7 +144,7 @@ export default function Pedidos({ ordenes, cargandoOrdenes, onRefill, onRepetir,
                 <span className="text-xs font-bold" style={{ color: info.color }}>{info.label}</span>
                 <span className="text-[10px]" style={{ color: t.muted }}>· {new Date(o.creado_en).toLocaleDateString()}</span>
               </div>
-              <span className="font-display font-bold text-sm">{Number(o.costo_total_creditos).toLocaleString()} ♦</span>
+              <span className="font-display font-bold text-sm">{Math.round(Number(o.costo_total_creditos)).toLocaleString()} ♦</span>
             </div>
             {o.link_cliente && (
               <a

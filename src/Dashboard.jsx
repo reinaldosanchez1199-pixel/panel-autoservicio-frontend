@@ -210,6 +210,9 @@ function GuiaPrimerosPasos({ t }) {
           );
         })}
       </div>
+      <p className="text-[11px] leading-relaxed mt-4 pt-3" style={{ color: t.muted, borderTop: `1px solid ${t.inputBorder}` }}>
+        💡 Tip: en <strong>Impulsar</strong> puedes combinar varias interacciones (likes, guardados, compartidos, repost, reproducciones) en una sola publicación, o impulsar varias publicaciones y cuentas al mismo tiempo.
+      </p>
     </div>
   );
 }
@@ -1045,7 +1048,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                   <div className="flex items-start justify-between mb-1.5">
                     <p className="text-xs font-medium pr-2">{h.nota || h.tipo}</p>
                     <span className="text-xs font-display font-bold whitespace-nowrap" style={{ color: Number(h.monto) > 0 ? '#10B981' : t.text }}>
-                      {Number(h.monto) > 0 ? '+' : ''}{Number(h.monto).toLocaleString()} ♦
+                      {Number(h.monto) > 0 ? '+' : ''}{Math.round(Number(h.monto)).toLocaleString()} ♦
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5">

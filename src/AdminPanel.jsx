@@ -265,7 +265,7 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
                   </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="font-display font-bold text-sm" style={{ color: '#F5A623' }}>+{Number(r.creditos_a_acreditar).toLocaleString()} ♦</span>
+                  <span className="font-display font-bold text-sm" style={{ color: '#F5A623' }}>+{Math.round(Number(r.creditos_a_acreditar)).toLocaleString()} ♦</span>
                   <button onClick={() => aprobar(r.id)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.15)' }}>
                     <Check size={15} style={{ color: '#10B981' }} />
                   </button>
@@ -361,7 +361,7 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
                         <span className="text-xs font-bold shrink-0" style={{ color: info.color }}>{info.label}</span>
                         <span className="text-xs font-semibold truncate">· {o.email}</span>
                       </div>
-                      <span className="font-display font-bold text-sm shrink-0">{Number(o.costo_total_creditos).toLocaleString()} ♦</span>
+                      <span className="font-display font-bold text-sm shrink-0">{Math.round(Number(o.costo_total_creditos)).toLocaleString()} ♦</span>
                     </div>
                     <p className="text-[10px] mb-2" style={{ color: t.muted }}>{new Date(o.creado_en).toLocaleString()}</p>
                     {o.link_cliente && (
@@ -460,7 +460,7 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-[10px]" style={{ color: t.muted }}>Saldo actual</p>
-                      <p className="font-display font-bold text-sm" style={{ color: '#F5A623' }}>{Number(c.saldo_creditos).toLocaleString()} ♦</p>
+                      <p className="font-display font-bold text-sm" style={{ color: '#F5A623' }}>{Math.round(Number(c.saldo_creditos)).toLocaleString()} ♦</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-2 mt-3">
