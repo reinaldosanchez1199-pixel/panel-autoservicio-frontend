@@ -5,9 +5,13 @@ import { Plus, Trash2, Rocket, Link2, Users, Heart, Sparkles } from 'lucide-reac
 import { GRADIENT, GRADIENT_SOFT } from './theme';
 import { PLATAFORMA_COLOR, etiquetaPlataforma } from './plataformas';
 
-const PLATAFORMAS_IMPULSAR = ['Instagram', 'TikTok', 'Facebook', 'YouTube'];
+// YouTube queda fuera de Impulsar en lote: sus servicios son mucho más caros
+// que el resto y no encajan bien en el modelo de combo/lote de esta sección.
+const PLATAFORMAS_IMPULSAR = ['Instagram', 'TikTok', 'Facebook'];
 const MAX_PUBLICACIONES = 10;
 const MAX_CUENTAS = 5;
+const MINIMO_CUENTAS_LOTE = 3;
+const DESCUENTO_LOTE_PCT = 10;
 
 // Mismas bandas de descuento por volumen que el resto de la app (Dashboard.jsx
 // / wallet.js) — se duplica aquí solo para el estimado en vivo; el backend es
@@ -38,18 +42,26 @@ function celebrar() {
 let contadorId = 0;
 const nuevoId = () => `f${Date.now()}-${contadorId++}`;
 
-// Métricas que se pueden pedir por publicación. "combo" marca las 4 que,
-// juntas, activan el 20% de descuento (ver TIPOS_COMBO_PUBLICACION y la
-// misma regla espejo en wallet.js/crearPedido — el backend es quien de
-// verdad aplica el descuento, esto es solo el estimado en vivo).
+// Métricas que se pueden pedir por publicación.
 const METRICAS_PUBLICACION = [
-  { key: 'likes', tipo: 'Likes', label: 'Likes', combo: true },
-  { key: 'guardados', tipo: 'Guardados', label: 'Guardados', combo: true },
-  { key: 'compartidos', tipo: 'Compartidos', label: 'Compartidos', combo: true },
-  { key: 'repost', tipo: 'Reposts', label: 'Repost', combo: true },
-  { key: 'reproducciones', tipo: 'Reproducciones', label: 'Reproducciones', combo: false },
+  { key: 'likes', tipo: 'Likes', label: 'Likes' },
+  { key: 'guardados', tipo: 'Guardados', label: 'Guardados' },
+  { key: 'compartidos', tipo: 'Compartidos', label: 'Compartidos' },
+  { key: 'repost', tipo: 'Reposts', label: 'Repost' },
+  { key: 'reproducciones', tipo: 'Reproducciones', label: 'Reproducciones' },
 ];
-const TIPOS_COMBO_PUBLICACION = METRICAS_PUBLICACION.filter((m) => m.combo).map((m) => m.tipo);
+const LABEL_POR_TIPO = Object.fromEntries(METRICAS_PUBLICACION.map((m) => [m.tipo, m.label]));
+
+// Qué tipos hay que comprar juntos, en la misma publicación, para activar el
+// 20% de descuento — varía por plataforma porque el catálogo real de
+// servicios varía (ej. TikTok no tiene Repost, Facebook no tiene Guardados
+// ni Compartidos). Misma regla espejo en wallet.js/crearPedido — el backend
+// es quien de verdad aplica el descuento, esto es solo el estimado en vivo.
+const REGLAS_COMBO_PUBLICACION = {
+  Instagram: ['Likes', 'Guardados', 'Compartidos', 'Reposts'],
+  TikTok: ['Likes', 'Guardados', 'Compartidos', 'Reproducciones'],
+  Facebook: ['Likes', 'Reproducciones'],
+};
 
 function filaPublicacionVacia() {
   return { id: nuevoId(), link: '', plataforma: 'Instagram', likes: '', reproducciones: '', guardados: '', compartidos: '', repost: '' };
@@ -82,7 +94,7 @@ function InputCantidad({ value, onChange, placeholder, min, t }) {
   );
 }
 
-export default function Impulsar({ servicios, wallet, t, onCrear }) {
+export default function Impulsar({ servicios, wallet, t, onCrear, onCrearLote }) {
   const [tab, setTab] = useState('publicaciones');
   const [filasPub, setFilasPub] = useState([filaPublicacionVacia(), filaPublicacionVacia(), filaPublicacionVacia()]);
   const [filasCta, setFilasCta] = useState([filaCuentaVacia(), filaCuentaVacia()]);
@@ -109,10 +121,12 @@ export default function Impulsar({ servicios, wallet, t, onCrear }) {
           servicio: servicioPorDefecto(servicios, f.plataforma, m.tipo),
           cantidad: parseInt(f[m.key]) || 0,
         }));
-        const comboListo = metricas
-          .filter((m) => m.combo)
-          .every((m) => m.servicio && m.cantidad >= (m.servicio.cantidad_min || 1));
-        return { ...f, metricas, comboListo };
+        const requeridosCombo = REGLAS_COMBO_PUBLICACION[f.plataforma] || null;
+        const comboListo = !!requeridosCombo && requeridosCombo.every((tipo) => {
+          const m = metricas.find((x) => x.tipo === tipo);
+          return m?.servicio && m.cantidad >= (m.servicio.cantidad_min || 1);
+        });
+        return { ...f, metricas, requeridosCombo, comboListo };
       }),
     [filasPub, servicios]
   );
@@ -168,6 +182,16 @@ export default function Impulsar({ servicios, wallet, t, onCrear }) {
     [filasCta, servicios]
   );
 
+  const cuentasValidas = useMemo(
+    () =>
+      filasCtaConServicio.filter((f) => {
+        const cantidad = parseInt(f.cantidad) || 0;
+        return f.link.trim() && f.servicio && cantidad >= (f.servicio.cantidad_min || 1);
+      }),
+    [filasCtaConServicio]
+  );
+  const loteListo = cuentasValidas.length >= MINIMO_CUENTAS_LOTE;
+
   const totalCta = useMemo(() => {
     let total = 0;
     for (const f of filasCtaConServicio) {
@@ -175,8 +199,8 @@ export default function Impulsar({ servicios, wallet, t, onCrear }) {
       const cantidad = parseInt(f.cantidad) || 0;
       if (cantidad > 0) total += costoItem('Seguidores', cantidad, f.servicio.precio_creditos_por_1000);
     }
-    return total;
-  }, [filasCtaConServicio, descuentoNivel]);
+    return loteListo ? Math.round(total * (1 - DESCUENTO_LOTE_PCT / 100)) : total;
+  }, [filasCtaConServicio, descuentoNivel, loteListo]);
 
   const actualizarFilaCta = (id, campo, valor) =>
     setFilasCta((prev) => prev.map((f) => (f.id === id ? { ...f, [campo]: valor } : f)));
@@ -184,12 +208,10 @@ export default function Impulsar({ servicios, wallet, t, onCrear }) {
   const quitarFilaCta = (id) => setFilasCta((prev) => (prev.length <= 1 ? prev : prev.filter((f) => f.id !== id)));
 
   const lanzarCuentas = async () => {
-    const filas = [];
-    for (const f of filasCtaConServicio) {
-      if (!f.link.trim() || !f.servicio) continue;
-      const cantidad = parseInt(f.cantidad) || 0;
-      if (cantidad >= (f.servicio.cantidad_min || 1)) filas.push({ link: f.link.trim(), items: [{ serviceId: f.servicio.id, cantidad }] });
-    }
+    const filas = cuentasValidas.map((f) => ({
+      link: f.link.trim(),
+      items: [{ serviceId: f.servicio.id, cantidad: parseInt(f.cantidad) || 0 }],
+    }));
     if (filas.length === 0) {
       setResultado({ error: 'Agrega al menos una cuenta con una cantidad de seguidores válida.' });
       return;
@@ -197,12 +219,12 @@ export default function Impulsar({ servicios, wallet, t, onCrear }) {
     setEnviando(true);
     setResultado(null);
     try {
-      const r = await onCrear(filas);
+      const r = await onCrearLote(filas);
       setResultado(r);
-      if (r.ok > 0) {
-        celebrar();
-        setFilasCta([filaCuentaVacia(), filaCuentaVacia()]);
-      }
+      celebrar();
+      setFilasCta([filaCuentaVacia(), filaCuentaVacia()]);
+    } catch (err) {
+      setResultado({ error: err.message });
     } finally {
       setEnviando(false);
     }
@@ -296,9 +318,9 @@ export default function Impulsar({ servicios, wallet, t, onCrear }) {
                       />
                     ))}
                   </div>
-                  {!f.comboListo && (
+                  {!f.comboListo && f.requeridosCombo && (
                     <p className="text-[10px] mt-2" style={{ color: t.muted }}>
-                      💡 Agrega Likes + Guardados + Compartidos + Repost juntos y se activa el 20% de descuento.
+                      💡 Agrega {f.requeridosCombo.map((tipo) => LABEL_POR_TIPO[tipo]).join(' + ')} juntos y se activa el 20% de descuento.
                     </p>
                   )}
                 </motion.div>
@@ -329,6 +351,15 @@ export default function Impulsar({ servicios, wallet, t, onCrear }) {
           </>
         ) : (
           <>
+            <div
+              className="flex items-center gap-2.5 rounded-2xl px-4 py-3 mb-4"
+              style={{ background: GRADIENT_SOFT, border: '1px solid #7C3AED44' }}
+            >
+              <Sparkles size={16} style={{ color: '#F5A623' }} className="shrink-0" />
+              <p className="text-xs font-medium" style={{ color: t.text }}>
+                Impulsa <strong>3 cuentas o más</strong> al mismo tiempo y obtén <strong style={{ color: '#F5A623' }}>10% de descuento</strong> en el total.
+              </p>
+            </div>
             <div className="space-y-3">
               {filasCtaConServicio.map((f, i) => (
                 <motion.div
@@ -387,6 +418,15 @@ export default function Impulsar({ servicios, wallet, t, onCrear }) {
               <div>
                 <p className="text-[10px]" style={{ color: t.muted }}>Total estimado</p>
                 <p className="text-lg font-display font-bold" style={{ color: '#F5A623' }}>{totalCta.toLocaleString()} ♦</p>
+                {loteListo ? (
+                  <span className="flex items-center gap-1 text-[10px] font-bold mt-0.5" style={{ color: '#F5A623' }}>
+                    <Sparkles size={10} /> Descuento de lote -10% aplicado
+                  </span>
+                ) : cuentasValidas.length > 0 ? (
+                  <p className="text-[10px] mt-0.5" style={{ color: t.muted }}>
+                    Agrega {MINIMO_CUENTAS_LOTE - cuentasValidas.length} cuenta{MINIMO_CUENTAS_LOTE - cuentasValidas.length === 1 ? '' : 's'} más para el 10%
+                  </p>
+                ) : null}
               </div>
               <motion.button
                 whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}

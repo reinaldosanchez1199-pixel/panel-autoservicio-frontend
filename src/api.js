@@ -107,6 +107,7 @@ export const api = {
   borrarPerfil: (id) => request(`/api/perfiles/${id}`, { method: 'DELETE' }),
   activity: () => request('/api/activity'),
   crearOrden: (linkCliente, items) => request('/api/orders', { method: 'POST', body: { linkCliente, items } }),
+  crearOrdenesLote: (filas) => request('/api/orders/lote', { method: 'POST', body: { filas } }),
   crearOrdenBundle: (linkCliente, bundleId) => request('/api/orders/bundle', { method: 'POST', body: { linkCliente, bundleId } }),
   orden: (id) => request(`/api/orders/${id}`),
   ordenes: () => request('/api/orders'),

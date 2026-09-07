@@ -415,6 +415,15 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
     };
   };
 
+  // Usado por Impulsar → Cuentas: crea todos los pedidos del lote en una sola
+  // llamada atómica al backend, que es quien decide (y cobra) el descuento de
+  // 3+ cuentas simultáneas — nunca se calcula ni se confía en el cliente.
+  const crearCuentasEnLote = async (filas) => {
+    const r = await api.crearOrdenesLote(filas.map((f) => ({ linkCliente: f.link, items: f.items })));
+    await cargarTodo();
+    return { ok: r.pedidoIds.length, fallidas: [], descuentoLotePct: r.descuentoLotePct };
+  };
+
   const pedirBundle = async (bundleId) => {
     if (!link) { setMensaje('Primero pega el link de tu perfil arriba.'); return; }
     setMensaje(''); setEnviando(true);
@@ -613,7 +622,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
         ) : navActivo === 'cuenta' ? (
           <Cuenta me={me} wallet={wallet} plataformas={plataformas} perfiles={perfiles} onAgregarPerfil={agregarPerfil} onBorrarPerfil={borrarPerfil} t={t} />
         ) : navActivo === 'impulsar' ? (
-          <Impulsar servicios={servicios} wallet={wallet} t={t} onCrear={crearOrdenesMultiples} />
+          <Impulsar servicios={servicios} wallet={wallet} t={t} onCrear={crearOrdenesMultiples} onCrearLote={crearCuentasEnLote} />
         ) : (
         <>
         <AnimatePresence>
