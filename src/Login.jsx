@@ -24,8 +24,11 @@ function leerCodigoReferidoDeUrl() {
 }
 
 export default function Login({ onAuth }) {
-  const codigoReferido = useRef(leerCodigoReferidoDeUrl()).current;
-  const [modo, setModo] = useState(codigoReferido ? 'registro' : 'login');
+  const codigoReferidoUrl = useRef(leerCodigoReferidoDeUrl()).current;
+  const [modo, setModo] = useState(codigoReferidoUrl ? 'registro' : 'login');
+  // Si vino por link ya queda cargado; si no, el campo abajo permite escribirlo
+  // a mano (alguien puede pasarte el código de palabra, sin link).
+  const [codigoReferido, setCodigoReferido] = useState(codigoReferidoUrl);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nombre, setNombre] = useState('');
@@ -163,7 +166,7 @@ export default function Login({ onAuth }) {
               </button>
             </div>
 
-            {codigoReferido && modo === 'registro' && (
+            {codigoReferidoUrl && modo === 'registro' && (
               <motion.p
                 initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
                 className="text-xs mb-4 px-3 py-2.5 rounded-xl text-center"
@@ -171,6 +174,16 @@ export default function Login({ onAuth }) {
               >
                 🎁 Te invitaron con el código <strong>{codigoReferido}</strong> — ambos ganan 500 Viral Credits en tu primera recarga.
               </motion.p>
+            )}
+
+            {!codigoReferidoUrl && modo === 'registro' && (
+              <input
+                value={codigoReferido}
+                onChange={(e) => setCodigoReferido(e.target.value.toUpperCase())}
+                placeholder="¿Tienes un código de invitación? (opcional)"
+                className="w-full mb-3 px-4 py-3 rounded-xl text-sm outline-none"
+                style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.text }}
+              />
             )}
 
             {GOOGLE_CLIENT_ID && (
