@@ -50,7 +50,7 @@ const MEDIOS_PAGO_MANUAL = [
 const DESCRIPCIONES_TIPO = {
   Seguidores: 'Más gente viendo tu perfil desde ya — se ve más grande y confiable 🚀',
   Likes: 'Esa primera ola de likes que hace que el algoritmo empiece a mover tu publicación 🔥',
-  Vistas: 'Más reproducciones = más credibilidad y más impulso para llegar a nuevas personas 👀',
+  Reproducciones: 'Más reproducciones = más credibilidad y más impulso para llegar a nuevas personas 👀',
   Guardados: 'Cuando guardan tu post, la plataforma entiende que vale la pena mostrarlo a más gente 📌',
   Compartidos: 'Cada compartido lleva tu contenido a círculos nuevos que todavía no te conocen 🔁',
   Reposts: 'Tu contenido saltando a más perfiles — nuevas audiencias descubriéndote 🔁',
@@ -110,7 +110,7 @@ const BANDAS_DESCUENTO_CANTIDAD = {
     { hasta: 5000, tramo: 2000, pct: 5 },
     { hasta: Infinity, tramo: 5000, pct: 7 },
   ],
-  Vistas: [
+  Reproducciones: [
     { hasta: 20000, tramo: 4000, pct: 3 },
     { hasta: 50000, tramo: 20000, pct: 5 },
     { hasta: Infinity, tramo: 50000, pct: 7 },
