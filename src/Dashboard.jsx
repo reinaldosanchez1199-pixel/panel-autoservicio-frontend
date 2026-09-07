@@ -183,6 +183,37 @@ function requiereVariacion(tipo) {
   return TIPOS_VARIACION.includes(tipo);
 }
 
+// Guía de primeros pasos — ocupa el espacio de "Actividad en tiempo real"
+// solo mientras el cliente no tiene ningún movimiento real; en cuanto hace su
+// primer pedido o recarga, esta guía se reemplaza sola por esa actividad.
+const PASOS_GUIA = [
+  { icon: CreditCard, texto: <span><strong>Recarga</strong> tu cuenta con Viral Credits.</span> },
+  { icon: Sparkles, texto: <span>Elige la <strong>red social</strong> y el <strong>servicio</strong> que quieres impulsar, y ajusta la <strong>cantidad</strong> — el precio se actualiza al instante.</span> },
+  { icon: Link2, texto: <span>Copia el <strong>link</strong> de tu perfil o publicación y pégalo abajo.</span> },
+  { icon: Rocket, texto: <span>Dale a <strong>Impulsar</strong> y listo — el progreso aparece aquí mismo, en vivo.</span> },
+];
+
+function GuiaPrimerosPasos({ t }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold mb-3">¡Bienvenido a Viralizame! 👋 Así se hace tu primera campaña:</p>
+      <div className="space-y-3">
+        {PASOS_GUIA.map((paso, i) => {
+          const Icono = paso.icon;
+          return (
+            <div key={i} className="flex items-start gap-2.5">
+              <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: GRADIENT_SOFT, border: '1px solid rgba(124,58,237,0.3)' }}>
+                <Icono size={12} style={{ color: '#C4B5FD' }} />
+              </div>
+              <p className="text-xs leading-relaxed" style={{ color: t.muted }}>{paso.texto}</p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function formatoRelativo(fechaISO) {
   const diffMs = Date.now() - new Date(fechaISO).getTime();
   const min = Math.floor(diffMs / 60000);
@@ -1008,7 +1039,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
               <h2 className="font-display font-bold text-sm">Actividad en tiempo real</h2>
             </div>
             <div className="space-y-3">
-              {historial.length === 0 && <p className="text-xs" style={{ color: t.muted }}>Todavía no tienes actividad.</p>}
+              {historial.length === 0 && <GuiaPrimerosPasos t={t} />}
               {historial.map((h, i) => (
                 <motion.div key={h.id} initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }} className="pb-3" style={{ borderBottom: `1px solid ${t.inputBorder}` }}>
                   <div className="flex items-start justify-between mb-1.5">

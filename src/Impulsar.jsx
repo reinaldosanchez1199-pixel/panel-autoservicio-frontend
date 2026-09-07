@@ -169,17 +169,24 @@ export default function Impulsar({ servicios, wallet, t, onCrear, onCrearLote })
     [filasPub, servicios]
   );
 
-  const totalPub = useMemo(() => {
+  const { total: totalPub, ahorro: ahorroPub } = useMemo(() => {
     let total = 0;
+    let ahorro = 0;
     for (const f of filasPubConServicios) {
       if (!f.link.trim()) continue;
       let subtotal = 0;
       for (const m of f.metricas) {
         if (m.servicio && m.cantidad > 0) subtotal += costoItem(m.tipo, m.cantidad, m.servicio.precio_creditos_por_1000);
       }
-      total += f.comboListo ? Math.round(subtotal * 0.80) : subtotal;
+      if (f.comboListo) {
+        const conDescuento = Math.round(subtotal * 0.80);
+        ahorro += subtotal - conDescuento;
+        total += conDescuento;
+      } else {
+        total += subtotal;
+      }
     }
-    return total;
+    return { total, ahorro };
   }, [filasPubConServicios, descuentoNivel]);
 
   const actualizarFilaPub = (id, campo, valor) =>
@@ -238,14 +245,16 @@ export default function Impulsar({ servicios, wallet, t, onCrear, onCrearLote })
   );
   const loteListo = cuentasValidas.length >= MINIMO_CUENTAS_LOTE;
 
-  const totalCta = useMemo(() => {
+  const { total: totalCta, ahorro: ahorroCta } = useMemo(() => {
     let total = 0;
     for (const f of filasCtaConServicio) {
       if (!f.link.trim() || !f.servicio) continue;
       const cantidad = parseInt(f.cantidad) || 0;
       if (cantidad > 0) total += costoItem('Seguidores', cantidad, f.servicio.precio_creditos_por_1000);
     }
-    return loteListo ? Math.round(total * (1 - DESCUENTO_LOTE_PCT / 100)) : total;
+    if (!loteListo) return { total, ahorro: 0 };
+    const conDescuento = Math.round(total * (1 - DESCUENTO_LOTE_PCT / 100));
+    return { total: conDescuento, ahorro: total - conDescuento };
   }, [filasCtaConServicio, descuentoNivel, loteListo]);
 
   const actualizarFilaCta = (id, campo, valor) =>
@@ -389,6 +398,11 @@ export default function Impulsar({ servicios, wallet, t, onCrear, onCrearLote })
               <div>
                 <p className="text-[10px]" style={{ color: t.muted }}>Total estimado</p>
                 <p className="text-lg font-display font-bold" style={{ color: '#F5A623' }}>{totalPub.toLocaleString()} ♦</p>
+                {ahorroPub > 0 && (
+                  <p className="text-[10px] font-semibold" style={{ color: '#10B981' }}>
+                    🎉 Combo -20% aplicado — ahorras {ahorroPub.toLocaleString()} ♦
+                  </p>
+                )}
               </div>
               <motion.button
                 whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
@@ -477,8 +491,8 @@ export default function Impulsar({ servicios, wallet, t, onCrear, onCrearLote })
                 <p className="text-[10px]" style={{ color: t.muted }}>Total estimado</p>
                 <p className="text-lg font-display font-bold" style={{ color: '#F5A623' }}>{totalCta.toLocaleString()} ♦</p>
                 {loteListo ? (
-                  <span className="flex items-center gap-1 text-[10px] font-bold mt-0.5" style={{ color: '#F5A623' }}>
-                    <Sparkles size={10} /> Descuento de lote -{DESCUENTO_LOTE_PCT}% aplicado
+                  <span className="flex items-center gap-1 text-[10px] font-bold mt-0.5" style={{ color: '#10B981' }}>
+                    <Sparkles size={10} /> 🎉 Descuento -{DESCUENTO_LOTE_PCT}% aplicado — ahorras {ahorroCta.toLocaleString()} ♦
                   </span>
                 ) : cuentasValidas.length > 0 ? (
                   <p className="text-[10px] mt-0.5" style={{ color: t.muted }}>
