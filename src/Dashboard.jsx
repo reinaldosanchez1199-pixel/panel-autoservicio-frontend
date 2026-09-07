@@ -617,14 +617,9 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
           </div>
         </motion.div>
 
-        {navActivo === 'pedidos' ? (
-          <Pedidos ordenes={ordenes} cargandoOrdenes={cargandoOrdenes} onRefill={solicitarRefillItem} onRepetir={repetirEnvioItem} t={t} />
-        ) : navActivo === 'cuenta' ? (
-          <Cuenta me={me} wallet={wallet} plataformas={plataformas} perfiles={perfiles} onAgregarPerfil={agregarPerfil} onBorrarPerfil={borrarPerfil} t={t} />
-        ) : navActivo === 'impulsar' ? (
-          <Impulsar servicios={servicios} wallet={wallet} t={t} onCrear={crearOrdenesMultiples} onCrearLote={crearCuentasEnLote} />
-        ) : (
-        <>
+        {/* El panel de recarga vive fuera de las pestañas — "Recargar" debe
+            abrirlo sin importar en qué sección (Impulsar, Pedidos, etc.) esté
+            el usuario, no solo en Inicio. */}
         <AnimatePresence>
           {mostrarRecarga && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="rounded-2xl p-4 mb-6 overflow-hidden" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)' }}>
@@ -736,6 +731,14 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
           )}
         </AnimatePresence>
 
+        {navActivo === 'pedidos' ? (
+          <Pedidos ordenes={ordenes} cargandoOrdenes={cargandoOrdenes} onRefill={solicitarRefillItem} onRepetir={repetirEnvioItem} t={t} />
+        ) : navActivo === 'cuenta' ? (
+          <Cuenta me={me} wallet={wallet} plataformas={plataformas} perfiles={perfiles} onAgregarPerfil={agregarPerfil} onBorrarPerfil={borrarPerfil} t={t} />
+        ) : navActivo === 'impulsar' ? (
+          <Impulsar servicios={servicios} wallet={wallet} t={t} onCrear={crearOrdenesMultiples} onCrearLote={crearCuentasEnLote} />
+        ) : (
+        <>
         {bundles.length > 0 && (
           <div className="mb-2">
             <div className="flex items-center gap-1.5 mb-2">
