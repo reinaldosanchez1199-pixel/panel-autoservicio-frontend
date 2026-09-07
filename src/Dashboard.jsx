@@ -12,6 +12,8 @@ import AIChat from './AIChat';
 import LevelProgress from './LevelProgress';
 import Cuenta from './Cuenta';
 import Pedidos from './Pedidos';
+import Impulsar from './Impulsar';
+import { etiquetaPlataforma, PLATAFORMA_COLOR } from './plataformas';
 import { theme, GRADIENT, GRADIENT_SOFT, GOLD_GRADIENT, FONT_IMPORT } from './theme';
 
 const TIER_ICONOS = [Zap, Flame, Gem, Crown, Trophy];
@@ -180,20 +182,6 @@ const TIPOS_VARIACION = ['Likes', 'Reproducciones', 'Guardados', 'Compartidos', 
 function requiereVariacion(tipo) {
   return TIPOS_VARIACION.includes(tipo);
 }
-
-// El valor interno sigue siendo "Twitter" (coincide con la columna plataforma
-// en la base de datos y con SERVICIOS_SEGUIDOS) — solo cambia lo que se le
-// muestra al cliente, ya que hoy la plataforma se llama X.
-const ETIQUETA_PLATAFORMA = { Twitter: 'Twitter (X)' };
-const etiquetaPlataforma = (p) => ETIQUETA_PLATAFORMA[p] || p;
-
-const PLATAFORMA_COLOR = {
-  Instagram: '#EC4899',
-  TikTok: '#06B6D4',
-  Facebook: '#7C3AED',
-  Twitter: '#38BDF8',
-  YouTube: '#F5A623',
-};
 
 function formatoRelativo(fechaISO) {
   const diffMs = Date.now() - new Date(fechaISO).getTime();
@@ -416,6 +404,17 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
     }
   };
 
+  // Usado por Impulsar (sección de lote) — crea varios pedidos independientes
+  // (uno por link) en paralelo, ya que /api/orders solo acepta un link a la vez.
+  const crearOrdenesMultiples = async (filas) => {
+    const resultados = await Promise.allSettled(filas.map((f) => api.crearOrden(f.link, f.items)));
+    await cargarTodo();
+    return {
+      ok: resultados.filter((r) => r.status === 'fulfilled').length,
+      fallidas: resultados.filter((r) => r.status === 'rejected').map((r) => r.reason?.message || 'Error desconocido'),
+    };
+  };
+
   const pedirBundle = async (bundleId) => {
     if (!link) { setMensaje('Primero pega el link de tu perfil arriba.'); return; }
     setMensaje(''); setEnviando(true);
@@ -613,6 +612,8 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
           <Pedidos ordenes={ordenes} cargandoOrdenes={cargandoOrdenes} onRefill={solicitarRefillItem} onRepetir={repetirEnvioItem} t={t} />
         ) : navActivo === 'cuenta' ? (
           <Cuenta me={me} wallet={wallet} plataformas={plataformas} perfiles={perfiles} onAgregarPerfil={agregarPerfil} onBorrarPerfil={borrarPerfil} t={t} />
+        ) : navActivo === 'impulsar' ? (
+          <Impulsar servicios={servicios} wallet={wallet} t={t} onCrear={crearOrdenesMultiples} />
         ) : (
         <>
         <AnimatePresence>
@@ -874,7 +875,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                           className="inline-flex items-center gap-1 text-[10px] font-semibold"
                           style={{ color: '#10B981' }}
                         >
-                          ✓ +5-10% de interacciones extra
+                          ✓ Un poquito más de regalo, siempre
                           <Info size={11} style={{ opacity: 0.7 }} />
                         </button>
                       )}
@@ -903,7 +904,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                       className="overflow-hidden mb-3"
                     >
                       <div className="rounded-xl px-3.5 py-3 text-[11px] leading-relaxed" style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.muted }}>
-                        Siempre agregamos entre un 5% y un 10% extra sobre la cantidad que compras, para que tus publicaciones no se vean todas con el mismo número exacto de interacciones. Es un extra que va por nuestra cuenta, no se cobra aparte.
+                        Nunca te dejamos justo en el número que pediste — siempre le sumamos un poquito extra (entre 5% y 10%, varía en cada pedido) para que tus publicaciones se vean naturales, no clonadas. Va por nuestra cuenta, no pagas nada de más. 💜
                       </div>
                     </motion.div>
                   )}
