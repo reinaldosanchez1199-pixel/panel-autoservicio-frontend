@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, X, Image as ImageIcon, Package, Wallet, ArrowLeft, LogOut, Shield, Search, Link2, CheckCircle2, Clock, XCircle, Undo2 } from 'lucide-react';
+import { Check, X, Image as ImageIcon, Package, Wallet, ArrowLeft, LogOut, Shield, Search, Link2, CheckCircle2, Clock, XCircle, Undo2, Gift } from 'lucide-react';
 import { api } from './api';
 import AnimatedBackground from './AnimatedBackground';
 import { theme, GRADIENT, FONT_IMPORT } from './theme';
@@ -20,6 +20,7 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
   const [ordenesAdmin, setOrdenesAdmin] = useState([]);
   const [cargandoOrdenes, setCargandoOrdenes] = useState(false);
   const [busquedaEmail, setBusquedaEmail] = useState('');
+  const [referidosSospechosos, setReferidosSospechosos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [borradores, setBorradores] = useState({});
@@ -51,6 +52,30 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
   }, []);
 
   useEffect(() => { if (tab === 'pedidos') buscarOrdenes(busquedaEmail); }, [tab]);
+
+  const cargarReferidos = useCallback(async () => {
+    try {
+      setReferidosSospechosos(await api.adminReferidosSospechosos());
+    } catch (err) {
+      setError(err.message);
+    }
+  }, []);
+
+  useEffect(() => { if (tab === 'referidos') cargarReferidos(); }, [tab, cargarReferidos]);
+
+  const aprobarReferido = async (id) => {
+    try {
+      await api.adminAprobarReferido(id);
+      setReferidosSospechosos((r) => r.filter((x) => x.id !== id));
+    } catch (err) { setError(err.message); }
+  };
+
+  const rechazarReferido = async (id) => {
+    try {
+      await api.adminRechazarReferido(id);
+      setReferidosSospechosos((r) => r.filter((x) => x.id !== id));
+    } catch (err) { setError(err.message); }
+  };
 
   const aprobar = async (id) => {
     try {
@@ -141,6 +166,13 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
             style={{ background: tab === 'pedidos' ? GRADIENT : t.surface, color: tab === 'pedidos' ? '#fff' : t.muted, border: `1px solid ${t.border}` }}
           >
             <Search size={15} /> Pedidos
+          </button>
+          <button
+            onClick={() => setTab('referidos')}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold"
+            style={{ background: tab === 'referidos' ? GRADIENT : t.surface, color: tab === 'referidos' ? '#fff' : t.muted, border: `1px solid ${t.border}` }}
+          >
+            <Gift size={15} /> Referidos {referidosSospechosos.length > 0 ? `(${referidosSospechosos.length})` : ''}
           </button>
         </div>
 
@@ -290,6 +322,36 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {tab === 'referidos' && (
+          <div className="space-y-3">
+            <p className="text-xs mb-2" style={{ color: t.muted }}>
+              Bonos de 500 créditos marcados como sospechosos (misma IP de registro que otro referido ya premiado, o más de 5 en 24h para el mismo referente). Revisa y decide.
+            </p>
+            {referidosSospechosos.length === 0 && (
+              <p className="text-sm text-center py-10" style={{ color: t.muted }}>No hay bonos de referido pendientes de revisión.</p>
+            )}
+            {referidosSospechosos.map((b) => (
+              <motion.div key={b.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl p-4" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)' }}>
+                <div className="flex items-center justify-between gap-4 mb-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate">{b.referente_email} → {b.referido_email}</p>
+                    <p className="text-xs mt-0.5" style={{ color: '#F5A623' }}>{b.motivo_sospecha}</p>
+                    <p className="text-[10px] mt-1" style={{ color: t.muted }}>IP del referido: {b.ip_registro || '—'} · {new Date(b.creado_en).toLocaleString()}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => aprobarReferido(b.id)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.15)' }} title="Aprobar — acreditar 500 a cada uno">
+                      <Check size={15} style={{ color: '#10B981' }} />
+                    </button>
+                    <button onClick={() => rechazarReferido(b.id)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(236,72,153,0.15)' }} title="Rechazar — no acreditar nada">
+                      <X size={15} style={{ color: '#EC4899' }} />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
           </div>
         )}
       </div>

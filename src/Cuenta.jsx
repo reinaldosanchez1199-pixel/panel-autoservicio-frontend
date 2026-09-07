@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Bookmark, Trash2, Plus, Mail, Calendar, Shield } from 'lucide-react';
+import { Bookmark, Trash2, Plus, Mail, Calendar, Shield, Gift, Check, Copy } from 'lucide-react';
 import { GRADIENT } from './theme';
 
 function formatoFecha(iso) {
@@ -69,6 +69,58 @@ function FormularioPerfil({ plataformas, onAgregar, t }) {
   );
 }
 
+function TarjetaReferidos({ me, t }) {
+  const [copiado, setCopiado] = useState(false);
+  if (!me?.codigo_referido) return null;
+
+  const link = `${window.location.origin}/?ref=${me.codigo_referido}`;
+  const copiar = async () => {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch {
+      // clipboard bloqueado (permiso/navegador) — el usuario puede copiar el link a mano
+    }
+  };
+
+  return (
+    <div className="rounded-3xl p-6" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)' }}>
+      <div className="flex items-center gap-2 mb-1">
+        <Gift size={15} style={{ color: '#F5A623' }} />
+        <h2 className="font-display font-bold text-lg">Invita y gana</h2>
+      </div>
+      <p className="text-xs mb-4" style={{ color: t.muted }}>
+        Comparte tu link — cuando la persona que invitas hace su primera recarga, ambos reciben <strong>500 Viral Credits</strong>.
+      </p>
+
+      <div className="flex items-center gap-2 mb-4">
+        <div className="flex-1 min-w-0 px-3.5 py-2.5 rounded-xl text-xs truncate" style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.text }}>
+          {link}
+        </div>
+        <button
+          onClick={copiar}
+          className="shrink-0 flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold"
+          style={{ background: copiado ? '#10B981' : GRADIENT, color: '#fff' }}
+        >
+          {copiado ? <Check size={13} /> : <Copy size={13} />} {copiado ? 'Copiado' : 'Copiar'}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <p className="text-[10px]" style={{ color: t.muted }}>Referidos exitosos</p>
+          <p className="text-lg font-display font-bold">{me.referidos_aprobados ?? 0}</p>
+        </div>
+        <div>
+          <p className="text-[10px]" style={{ color: t.muted }}>Créditos ganados</p>
+          <p className="text-lg font-display font-bold" style={{ color: '#F5A623' }}>{(me.creditos_ganados_por_referidos ?? 0).toLocaleString()} ♦</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Cuenta({ me, wallet, plataformas, perfiles, onAgregarPerfil, onBorrarPerfil, t }) {
   return (
     <div className="space-y-6 mb-6">
@@ -98,6 +150,8 @@ export default function Cuenta({ me, wallet, plataformas, perfiles, onAgregarPer
           </div>
         </div>
       </div>
+
+      <TarjetaReferidos me={me} t={t} />
 
       <div className="rounded-3xl p-6" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)' }}>
         <div className="flex items-center gap-2 mb-1">

@@ -13,8 +13,19 @@ const PILARES = [
   { icon: Zap, texto: 'Resultados visibles en minutos, no en días' },
 ];
 
+// Un link de referido trae ?ref=CODIGO — se guarda para mandarlo al backend
+// al crear la cuenta (el bono real se paga en la primera recarga, no aquí).
+function leerCodigoReferidoDeUrl() {
+  try {
+    return new URLSearchParams(window.location.search).get('ref')?.trim().toUpperCase() || '';
+  } catch {
+    return '';
+  }
+}
+
 export default function Login({ onAuth }) {
-  const [modo, setModo] = useState('login');
+  const codigoReferido = useRef(leerCodigoReferidoDeUrl()).current;
+  const [modo, setModo] = useState(codigoReferido ? 'registro' : 'login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nombre, setNombre] = useState('');
@@ -28,7 +39,7 @@ export default function Login({ onAuth }) {
     setError('');
     setCargando(true);
     try {
-      const data = modo === 'login' ? await api.login(email, password) : await api.registro(email, password, nombre);
+      const data = modo === 'login' ? await api.login(email, password) : await api.registro(email, password, nombre, codigoReferido);
       setToken(data.token);
       onAuth();
     } catch (err) {
@@ -51,7 +62,7 @@ export default function Login({ onAuth }) {
           setError('');
           setCargando(true);
           try {
-            const data = await api.loginGoogle(credential);
+            const data = await api.loginGoogle(credential, codigoReferido);
             setToken(data.token);
             onAuth();
           } catch (err) {
@@ -151,6 +162,16 @@ export default function Login({ onAuth }) {
                 Crear cuenta
               </button>
             </div>
+
+            {codigoReferido && modo === 'registro' && (
+              <motion.p
+                initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
+                className="text-xs mb-4 px-3 py-2.5 rounded-xl text-center"
+                style={{ color: '#C4B5FD', background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.3)' }}
+              >
+                🎁 Te invitaron con el código <strong>{codigoReferido}</strong> — ambos ganan 500 Viral Credits en tu primera recarga.
+              </motion.p>
+            )}
 
             {GOOGLE_CLIENT_ID && (
               <>

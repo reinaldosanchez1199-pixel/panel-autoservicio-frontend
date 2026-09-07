@@ -91,9 +91,9 @@ async function request(path, { method = 'GET', body, isForm = false } = {}) {
 
 export const api = {
   // Auth (rutas públicas, sin /api)
-  registro: (email, password, nombre) => request('/auth/registro', { method: 'POST', body: { email, password, nombre } }),
+  registro: (email, password, nombre, codigoReferido) => request('/auth/registro', { method: 'POST', body: { email, password, nombre, codigoReferido } }),
   login: (email, password) => request('/auth/login', { method: 'POST', body: { email, password } }),
-  loginGoogle: (credential) => request('/auth/google', { method: 'POST', body: { credential } }),
+  loginGoogle: (credential, codigoReferido) => request('/auth/google', { method: 'POST', body: { credential, codigoReferido } }),
 
   // Cliente
   me: () => request('/api/me'),
@@ -129,4 +129,7 @@ export const api = {
   adminActualizarServicio: (id, payload) => request(`/api/admin/services/${id}`, { method: 'PATCH', body: payload }),
   adminCrearBundle: (payload) => request('/api/admin/bundles', { method: 'POST', body: payload }),
   adminOrdenes: (email) => request(`/api/admin/orders${email ? `?email=${encodeURIComponent(email)}` : ''}`),
+  adminReferidosSospechosos: () => request('/api/admin/referidos/sospechosos'),
+  adminAprobarReferido: (id) => request(`/api/admin/referidos/${id}/aprobar`, { method: 'POST' }),
+  adminRechazarReferido: (id) => request(`/api/admin/referidos/${id}/rechazar`, { method: 'POST' }),
 };
