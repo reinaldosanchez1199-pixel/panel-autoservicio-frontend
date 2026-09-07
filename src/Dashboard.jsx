@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import {
   Sparkles, Link2, ChevronRight, ChevronDown, CheckCircle2, Clock, Sun, Moon, Star, Bookmark, Rocket,
-  Home, Package, CreditCard, Activity, User, Menu, X, LogOut, Shield, Cpu, Upload, Zap, Flame, Gem, Crown, Trophy, MessageCircle,
+  Home, Package, CreditCard, Activity, User, Menu, X, LogOut, Shield, Cpu, Upload, Zap, Flame, Gem, Crown, Trophy, MessageCircle, Info,
 } from 'lucide-react';
 import { api } from './api';
 import AnimatedBackground from './AnimatedBackground';
@@ -236,6 +236,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
   const [servicioSelId, setServicioSelId] = useState(null);
   const [cantidadSel, setCantidadSel] = useState(0);
   const [dropdownAbierto, setDropdownAbierto] = useState(false);
+  const [garantiaAbierta, setGarantiaAbierta] = useState(false);
   const [link, setLink] = useState('');
   const [mostrarRecarga, setMostrarRecarga] = useState(false);
   const [navActivo, setNavActivo] = useState('inicio');
@@ -361,6 +362,8 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plataformaSel, servicios]);
+
+  useEffect(() => { setGarantiaAbierta(false); }, [servicioSelId]);
 
   const ajustarCantidadSel = (delta) => {
     if (!servicioSel) return;
@@ -838,14 +841,40 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                     <div className="text-right">
                       <p className="text-[10px]" style={{ color: t.muted }}>min {servicioSel.cantidad_min.toLocaleString()} · max {servicioSel.cantidad_max.toLocaleString()}</p>
                       {requiereCompensacion(servicioSel.tipo) && (
-                        <p className="text-[10px]" style={{ color: '#10B981' }}>
-                          ✓ Se enviarán aprox. {Math.min(servicioSel.cantidad_max, Math.round(cantidadSel * 1.1)).toLocaleString()} (+10% de compensación incluido)
-                        </p>
+                        <>
+                          <p className="text-[10px]" style={{ color: '#10B981' }}>
+                            ✓ Se enviarán aprox. {Math.min(servicioSel.cantidad_max, Math.round(cantidadSel * 1.1)).toLocaleString()} (+10% de compensación incluido)
+                          </p>
+                          {servicioSel.dias_garantia && (
+                            <button
+                              type="button"
+                              onClick={() => setGarantiaAbierta((v) => !v)}
+                              className="inline-flex items-center gap-1 text-[10px] font-semibold mt-0.5"
+                              style={{ color: '#10B981' }}
+                            >
+                              <Shield size={11} /> Garantía de reposición {servicioSel.dias_garantia} días
+                              <Info size={11} style={{ opacity: 0.7 }} />
+                            </button>
+                          )}
+                        </>
                       )}
                       <p className="text-sm font-display font-bold" style={{ color: '#F5A623' }}>{costoConDescuento.toLocaleString()} ♦</p>
                     </div>
                   </div>
                 )}
+
+                <AnimatePresence>
+                  {garantiaAbierta && servicioSel && requiereCompensacion(servicioSel.tipo) && servicioSel.dias_garantia && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden mb-3"
+                    >
+                      <div className="rounded-xl px-3.5 py-3 text-[11px] leading-relaxed" style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.muted }}>
+                        Enviamos un 10% extra sobre la cantidad que compras para que, ante alguna pequeña baja natural, te mantengas siempre en la cantidad que adquiriste o por encima. Además, durante {servicioSel.dias_garantia} días te reponemos gratis cualquier caída. Al ser una reposición garantizada, no manejamos reembolsos para este tipo de servicio.
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 {servicioSel && (() => {
                   const escalon = proximoEscalon(servicioSel.tipo, cantidadSel);
