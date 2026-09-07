@@ -39,7 +39,7 @@ let contadorId = 0;
 const nuevoId = () => `f${Date.now()}-${contadorId++}`;
 
 // Métricas que se pueden pedir por publicación. "combo" marca las 4 que,
-// juntas, activan el 15% de descuento (ver TIPOS_COMBO_PUBLICACION y la
+// juntas, activan el 20% de descuento (ver TIPOS_COMBO_PUBLICACION y la
 // misma regla espejo en wallet.js/crearPedido — el backend es quien de
 // verdad aplica el descuento, esto es solo el estimado en vivo).
 const METRICAS_PUBLICACION = [
@@ -125,7 +125,7 @@ export default function Impulsar({ servicios, wallet, t, onCrear }) {
       for (const m of f.metricas) {
         if (m.servicio && m.cantidad > 0) subtotal += costoItem(m.tipo, m.cantidad, m.servicio.precio_creditos_por_1000);
       }
-      total += f.comboListo ? Math.round(subtotal * 0.85) : subtotal;
+      total += f.comboListo ? Math.round(subtotal * 0.80) : subtotal;
     }
     return total;
   }, [filasPubConServicios, descuentoNivel]);
@@ -255,7 +255,7 @@ export default function Impulsar({ servicios, wallet, t, onCrear }) {
                     <p className="text-[11px] font-semibold" style={{ color: t.muted }}>Publicación {i + 1}</p>
                     {f.comboListo && (
                       <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: GRADIENT_SOFT, color: '#F5A623' }}>
-                        <Sparkles size={10} /> Combo -15%
+                        <Sparkles size={10} /> Combo -20%
                       </span>
                     )}
                     {filasPub.length > 1 && (
@@ -298,7 +298,7 @@ export default function Impulsar({ servicios, wallet, t, onCrear }) {
                   </div>
                   {!f.comboListo && f.metricas.some((m) => m.combo && m.cantidad > 0) && (
                     <p className="text-[10px] mt-2" style={{ color: t.muted }}>
-                      💡 Agrega Likes + Guardados + Compartidos + Repost juntos y se activa el 15% de descuento.
+                      💡 Agrega Likes + Guardados + Compartidos + Repost juntos y se activa el 20% de descuento.
                     </p>
                   )}
                 </motion.div>

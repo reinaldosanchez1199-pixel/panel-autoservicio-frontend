@@ -268,7 +268,10 @@ export default function Landing({ onEntrar }) {
         {/* Footer */}
         <footer className="max-w-5xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs" style={{ color: t.muted, borderTop: `1px solid ${t.border}` }}>
           <p>© {new Date().getFullYear()} Viralizame · Worldklox Agency</p>
-          <p>worldklox@gmail.com</p>
+          <div className="flex items-center gap-4">
+            <a href="/terminos.html" style={{ color: t.muted }}>Términos y condiciones</a>
+            <p>worldklox@gmail.com</p>
+          </div>
         </footer>
       </div>
       <AIChat />

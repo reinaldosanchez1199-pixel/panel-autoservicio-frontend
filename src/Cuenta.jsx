@@ -131,6 +131,10 @@ export default function Cuenta({ me, wallet, plataformas, perfiles, onAgregarPer
           <FormularioPerfil plataformas={plataformas} onAgregar={onAgregarPerfil} t={t} />
         )}
       </div>
+
+      <p className="text-center text-[11px]">
+        <a href="/terminos.html" target="_blank" rel="noopener noreferrer" style={{ color: t.muted }}>Términos y condiciones</a>
+      </p>
     </div>
   );
 }
