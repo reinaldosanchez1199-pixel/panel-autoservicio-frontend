@@ -157,7 +157,8 @@ export default function Impulsar({ servicios, wallet, t, onCrear, onCrearLote })
             : servicioPorDefecto(servicios, f.plataforma, m.tipo),
           cantidad: parseInt(f[m.key]) || 0,
         }));
-        const tieneVarianteLikes = !!variantesDisponibles(servicios, f.plataforma, 'Likes').latino;
+        const varsLikes = variantesDisponibles(servicios, f.plataforma, 'Likes');
+        const tieneVarianteLikes = !!varsLikes.universal && !!varsLikes.latino;
         const requeridosCombo = REGLAS_COMBO_PUBLICACION[f.plataforma] || null;
         const comboListo = !!requeridosCombo && requeridosCombo.every((tipo) => {
           const m = metricas.find((x) => x.tipo === tipo);
@@ -216,11 +217,14 @@ export default function Impulsar({ servicios, wallet, t, onCrear, onCrearLote })
   // ---- Cuentas ----
   const filasCtaConServicio = useMemo(
     () =>
-      filasCta.map((f) => ({
-        ...f,
-        servicio: servicioPorVariante(servicios, f.plataforma, 'Seguidores', f.variante),
-        tieneVariante: !!variantesDisponibles(servicios, f.plataforma, 'Seguidores').latino,
-      })),
+      filasCta.map((f) => {
+        const vars = variantesDisponibles(servicios, f.plataforma, 'Seguidores');
+        return {
+          ...f,
+          servicio: servicioPorVariante(servicios, f.plataforma, 'Seguidores', f.variante),
+          tieneVariante: !!vars.universal && !!vars.latino,
+        };
+      }),
     [filasCta, servicios]
   );
 
