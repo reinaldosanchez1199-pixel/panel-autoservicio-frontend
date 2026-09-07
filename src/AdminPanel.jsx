@@ -21,6 +21,9 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
   const [cargandoOrdenes, setCargandoOrdenes] = useState(false);
   const [busquedaEmail, setBusquedaEmail] = useState('');
   const [referidosSospechosos, setReferidosSospechosos] = useState([]);
+  const [clientes, setClientes] = useState([]);
+  const [cargandoClientes, setCargandoClientes] = useState(false);
+  const [busquedaClienteEmail, setBusquedaClienteEmail] = useState('');
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [borradores, setBorradores] = useState({});
@@ -62,6 +65,19 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
   }, []);
 
   useEffect(() => { if (tab === 'referidos') cargarReferidos(); }, [tab, cargarReferidos]);
+
+  const buscarClientes = useCallback(async (email) => {
+    setCargandoClientes(true);
+    try {
+      setClientes(await api.adminClientes(email));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCargandoClientes(false);
+    }
+  }, []);
+
+  useEffect(() => { if (tab === 'clientes') buscarClientes(busquedaClienteEmail); }, [tab]);
 
   const aprobarReferido = async (id) => {
     try {
@@ -173,6 +189,13 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
             style={{ background: tab === 'referidos' ? GRADIENT : t.surface, color: tab === 'referidos' ? '#fff' : t.muted, border: `1px solid ${t.border}` }}
           >
             <Gift size={15} /> Referidos {referidosSospechosos.length > 0 ? `(${referidosSospechosos.length})` : ''}
+          </button>
+          <button
+            onClick={() => setTab('clientes')}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold"
+            style={{ background: tab === 'clientes' ? GRADIENT : t.surface, color: tab === 'clientes' ? '#fff' : t.muted, border: `1px solid ${t.border}` }}
+          >
+            <Wallet size={15} /> Clientes
           </button>
         </div>
 
@@ -352,6 +375,63 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
                 </div>
               </motion.div>
             ))}
+          </div>
+        )}
+
+        {tab === 'clientes' && (
+          <div>
+            <form
+              onSubmit={(e) => { e.preventDefault(); buscarClientes(busquedaClienteEmail); }}
+              className="flex items-center gap-2 mb-4"
+            >
+              <input
+                value={busquedaClienteEmail}
+                onChange={(e) => setBusquedaClienteEmail(e.target.value)}
+                placeholder="Buscar por correo del cliente..."
+                className="flex-1 text-sm px-4 py-2.5 rounded-xl outline-none"
+                style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.text }}
+              />
+              <button type="submit" className="px-4 py-2.5 rounded-xl text-sm font-semibold" style={{ background: GRADIENT, color: '#fff' }}>
+                Buscar
+              </button>
+            </form>
+
+            {cargandoClientes && <p className="text-sm" style={{ color: t.muted }}>Cargando...</p>}
+            {!cargandoClientes && clientes.length === 0 && (
+              <p className="text-sm text-center py-10" style={{ color: t.muted }}>No hay clientes que coincidan.</p>
+            )}
+            <div className="space-y-3">
+              {clientes.map((c) => (
+                <div key={c.id} className="rounded-2xl p-4" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)' }}>
+                  <div className="flex items-center justify-between gap-4 mb-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold truncate">{c.email}</p>
+                      <p className="text-[10px]" style={{ color: t.muted }}>
+                        {c.nombre || 'Sin nombre'} · cliente desde {new Date(c.creado_en).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-[10px]" style={{ color: t.muted }}>Saldo actual</p>
+                      <p className="font-display font-bold text-sm" style={{ color: '#F5A623' }}>{Number(c.saldo_creditos).toLocaleString()} ♦</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mt-3">
+                    <div className="px-3 py-2 rounded-xl text-center" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
+                      <p className="text-[10px]" style={{ color: t.muted }}>Total recargado</p>
+                      <p className="text-xs font-bold">${Number(c.total_recargado_usd).toLocaleString()}</p>
+                    </div>
+                    <div className="px-3 py-2 rounded-xl text-center" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
+                      <p className="text-[10px]" style={{ color: t.muted }}>Recargas</p>
+                      <p className="text-xs font-bold">{c.cantidad_recargas}</p>
+                    </div>
+                    <div className="px-3 py-2 rounded-xl text-center" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
+                      <p className="text-[10px]" style={{ color: t.muted }}>Créditos consumidos</p>
+                      <p className="text-xs font-bold">{Number(c.creditos_consumidos_total).toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

@@ -129,6 +129,7 @@ export const api = {
   adminActualizarServicio: (id, payload) => request(`/api/admin/services/${id}`, { method: 'PATCH', body: payload }),
   adminCrearBundle: (payload) => request('/api/admin/bundles', { method: 'POST', body: payload }),
   adminOrdenes: (email) => request(`/api/admin/orders${email ? `?email=${encodeURIComponent(email)}` : ''}`),
+  adminClientes: (email) => request(`/api/admin/clientes${email ? `?email=${encodeURIComponent(email)}` : ''}`),
   adminReferidosSospechosos: () => request('/api/admin/referidos/sospechosos'),
   adminAprobarReferido: (id) => request(`/api/admin/referidos/${id}/aprobar`, { method: 'POST' }),
   adminRechazarReferido: (id) => request(`/api/admin/referidos/${id}/rechazar`, { method: 'POST' }),
