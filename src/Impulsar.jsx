@@ -296,7 +296,7 @@ export default function Impulsar({ servicios, wallet, t, onCrear }) {
                       />
                     ))}
                   </div>
-                  {!f.comboListo && f.metricas.some((m) => m.combo && m.cantidad > 0) && (
+                  {!f.comboListo && (
                     <p className="text-[10px] mt-2" style={{ color: t.muted }}>
                       💡 Agrega Likes + Guardados + Compartidos + Repost juntos y se activa el 20% de descuento.
                     </p>
