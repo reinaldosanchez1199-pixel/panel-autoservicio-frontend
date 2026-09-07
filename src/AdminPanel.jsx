@@ -24,6 +24,7 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
   const [clientes, setClientes] = useState([]);
   const [cargandoClientes, setCargandoClientes] = useState(false);
   const [busquedaClienteEmail, setBusquedaClienteEmail] = useState('');
+  const [ajustesDraft, setAjustesDraft] = useState({});
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [borradores, setBorradores] = useState({});
@@ -56,6 +57,16 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
 
   useEffect(() => { if (tab === 'pedidos') buscarOrdenes(busquedaEmail); }, [tab]);
 
+  const cancelarItem = async (itemId) => {
+    if (!window.confirm('¿Cancelar este item y devolver los créditos al cliente?')) return;
+    try {
+      await api.adminCancelarItem(itemId, 'Cancelado manualmente desde el Admin Panel');
+      setOrdenesAdmin((os) =>
+        os.map((o) => ({ ...o, items: o.items.map((i) => (i.id === itemId ? { ...i, estado: 'reembolsado' } : i)) }))
+      );
+    } catch (err) { setError(err.message); }
+  };
+
   const cargarReferidos = useCallback(async () => {
     try {
       setReferidosSospechosos(await api.adminReferidosSospechosos());
@@ -78,6 +89,34 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
   }, []);
 
   useEffect(() => { if (tab === 'clientes') buscarClientes(busquedaClienteEmail); }, [tab]);
+
+  const suspenderCliente = async (id) => {
+    try {
+      await api.adminSuspenderCliente(id);
+      setClientes((cs) => cs.map((c) => (c.id === id ? { ...c, activo: false } : c)));
+    } catch (err) { setError(err.message); }
+  };
+
+  const reactivarCliente = async (id) => {
+    try {
+      await api.adminReactivarCliente(id);
+      setClientes((cs) => cs.map((c) => (c.id === id ? { ...c, activo: true } : c)));
+    } catch (err) { setError(err.message); }
+  };
+
+  const ajustarDraft = (id, campo, valor) =>
+    setAjustesDraft((d) => ({ ...d, [id]: { ...d[id], [campo]: valor } }));
+
+  const enviarAjuste = async (id) => {
+    const draft = ajustesDraft[id] || {};
+    const monto = parseFloat(draft.monto);
+    if (!monto) return;
+    try {
+      const r = await api.adminAjustarCreditos(id, monto, draft.motivo);
+      setClientes((cs) => cs.map((c) => (c.id === id ? { ...c, saldo_creditos: r.nuevoSaldo } : c)));
+      setAjustesDraft((d) => ({ ...d, [id]: { monto: '', motivo: '' } }));
+    } catch (err) { setError(err.message); }
+  };
 
   const aprobarReferido = async (id) => {
     try {
@@ -336,7 +375,14 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
                         return (
                           <div key={item.id} className="flex items-center justify-between px-3 py-2 rounded-xl text-xs" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
                             <span>{item.nombre_publico} · {item.plataforma}</span>
-                            <span style={{ color: itemInfo.color }}>{item.cantidad.toLocaleString()} · {itemInfo.label}</span>
+                            <div className="flex items-center gap-2">
+                              <span style={{ color: itemInfo.color }}>{item.cantidad.toLocaleString()} · {itemInfo.label}</span>
+                              {(item.estado === 'pendiente' || item.estado === 'procesando') && (
+                                <button onClick={() => cancelarItem(item.id)} className="text-[10px] font-bold px-2 py-1 rounded" style={{ background: 'rgba(236,72,153,0.15)', color: '#EC4899' }}>
+                                  Cancelar
+                                </button>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
@@ -402,10 +448,12 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
             )}
             <div className="space-y-3">
               {clientes.map((c) => (
-                <div key={c.id} className="rounded-2xl p-4" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)' }}>
+                <div key={c.id} className="rounded-2xl p-4" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)', opacity: c.activo === false ? 0.6 : 1 }}>
                   <div className="flex items-center justify-between gap-4 mb-2">
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold truncate">{c.email}</p>
+                      <p className="text-sm font-semibold truncate">
+                        {c.email} {c.activo === false && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(236,72,153,0.15)', color: '#EC4899' }}>SUSPENDIDA</span>}
+                      </p>
                       <p className="text-[10px]" style={{ color: t.muted }}>
                         {c.nombre || 'Sin nombre'} · cliente desde {new Date(c.creado_en).toLocaleDateString()}
                       </p>
@@ -428,6 +476,35 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
                       <p className="text-[10px]" style={{ color: t.muted }}>Créditos consumidos</p>
                       <p className="text-xs font-bold">{Number(c.creditos_consumidos_total).toLocaleString()}</p>
                     </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 mt-3 pt-3" style={{ borderTop: `1px solid ${t.inputBorder}` }}>
+                    {c.activo === false ? (
+                      <button onClick={() => reactivarCliente(c.id)} className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ background: 'rgba(16,185,129,0.15)', color: '#10B981' }}>
+                        Reactivar cuenta
+                      </button>
+                    ) : (
+                      <button onClick={() => suspenderCliente(c.id)} className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ background: 'rgba(236,72,153,0.15)', color: '#EC4899' }}>
+                        Suspender cuenta
+                      </button>
+                    )}
+                    <input
+                      value={ajustesDraft[c.id]?.monto || ''}
+                      onChange={(e) => ajustarDraft(c.id, 'monto', e.target.value)}
+                      placeholder="± créditos"
+                      type="number"
+                      className="w-24 text-xs px-2.5 py-1.5 rounded-lg outline-none"
+                      style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.text }}
+                    />
+                    <input
+                      value={ajustesDraft[c.id]?.motivo || ''}
+                      onChange={(e) => ajustarDraft(c.id, 'motivo', e.target.value)}
+                      placeholder="Motivo del ajuste"
+                      className="flex-1 min-w-[140px] text-xs px-2.5 py-1.5 rounded-lg outline-none"
+                      style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.text }}
+                    />
+                    <button onClick={() => enviarAjuste(c.id)} className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ background: GRADIENT, color: '#fff' }}>
+                      Ajustar
+                    </button>
                   </div>
                 </div>
               ))}
