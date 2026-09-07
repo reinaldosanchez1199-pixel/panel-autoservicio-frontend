@@ -11,7 +11,7 @@ const PLATAFORMAS_IMPULSAR = ['Instagram', 'TikTok', 'Facebook'];
 const MAX_PUBLICACIONES = 10;
 const MAX_CUENTAS = 5;
 const MINIMO_CUENTAS_LOTE = 3;
-const DESCUENTO_LOTE_PCT = 10;
+const DESCUENTO_LOTE_PCT = 15;
 
 // Mismas bandas de descuento por volumen que el resto de la app (Dashboard.jsx
 // / wallet.js) — se duplica aquí solo para el estimado en vivo; el backend es
@@ -64,10 +64,10 @@ const REGLAS_COMBO_PUBLICACION = {
 };
 
 function filaPublicacionVacia() {
-  return { id: nuevoId(), link: '', plataforma: 'Instagram', likes: '', reproducciones: '', guardados: '', compartidos: '', repost: '' };
+  return { id: nuevoId(), link: '', plataforma: 'Instagram', likes: '', reproducciones: '', guardados: '', compartidos: '', repost: '', varianteLikes: 'universal' };
 }
 function filaCuentaVacia() {
-  return { id: nuevoId(), link: '', plataforma: 'Instagram', cantidad: '' };
+  return { id: nuevoId(), link: '', plataforma: 'Instagram', cantidad: '', variante: 'universal' };
 }
 
 // Elige un servicio "por defecto" razonable para plataforma+tipo cuando hay
@@ -77,6 +77,40 @@ function servicioPorDefecto(servicios, plataforma, tipo) {
   const candidatos = servicios.filter((s) => s.plataforma === plataforma && s.tipo === tipo);
   if (candidatos.length === 0) return null;
   return candidatos.find((s) => /universal/i.test(s.nombre_publico)) || candidatos[0];
+}
+
+// Para Likes y Seguidores, Instagram tiene tanto la variante "Universal"
+// (más barata) como "Latinos" (genérica, sin género) — se deja elegir cuál
+// usar porque cambia el precio final. El resto de tipos/plataformas no
+// tienen esta dualidad, así que ahí no se muestra ningún selector.
+function variantesDisponibles(servicios, plataforma, tipo) {
+  const candidatos = servicios.filter((s) => s.plataforma === plataforma && s.tipo === tipo);
+  const universal = candidatos.find((s) => /universal/i.test(s.nombre_publico));
+  const latino = candidatos.find((s) => /^(Likes|Seguidores) Latinos$/.test(s.nombre_publico));
+  return { universal, latino };
+}
+function servicioPorVariante(servicios, plataforma, tipo, variante) {
+  const { universal, latino } = variantesDisponibles(servicios, plataforma, tipo);
+  if (variante === 'latino' && latino) return latino;
+  return universal || latino || servicioPorDefecto(servicios, plataforma, tipo);
+}
+
+function ToggleVariante({ valor, onChange, t }) {
+  return (
+    <div className="flex items-center gap-1 rounded-full p-0.5 w-fit" style={{ background: t.surfaceSolid, border: `1px solid ${t.inputBorder}` }}>
+      {[{ id: 'universal', label: 'Universal · más barato' }, { id: 'latino', label: 'Latinos' }].map((opt) => (
+        <button
+          key={opt.id}
+          type="button"
+          onClick={() => onChange(opt.id)}
+          className="px-2.5 py-1 rounded-full text-[10px] font-semibold"
+          style={{ background: valor === opt.id ? GRADIENT : 'transparent', color: valor === opt.id ? '#fff' : t.muted }}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function InputCantidad({ value, onChange, placeholder, min, t }) {
@@ -118,15 +152,18 @@ export default function Impulsar({ servicios, wallet, t, onCrear, onCrearLote })
       filasPub.map((f) => {
         const metricas = METRICAS_PUBLICACION.map((m) => ({
           ...m,
-          servicio: servicioPorDefecto(servicios, f.plataforma, m.tipo),
+          servicio: m.key === 'likes'
+            ? servicioPorVariante(servicios, f.plataforma, m.tipo, f.varianteLikes)
+            : servicioPorDefecto(servicios, f.plataforma, m.tipo),
           cantidad: parseInt(f[m.key]) || 0,
         }));
+        const tieneVarianteLikes = !!variantesDisponibles(servicios, f.plataforma, 'Likes').latino;
         const requeridosCombo = REGLAS_COMBO_PUBLICACION[f.plataforma] || null;
         const comboListo = !!requeridosCombo && requeridosCombo.every((tipo) => {
           const m = metricas.find((x) => x.tipo === tipo);
           return m?.servicio && m.cantidad >= (m.servicio.cantidad_min || 1);
         });
-        return { ...f, metricas, requeridosCombo, comboListo };
+        return { ...f, metricas, requeridosCombo, comboListo, tieneVarianteLikes };
       }),
     [filasPub, servicios]
   );
@@ -178,7 +215,12 @@ export default function Impulsar({ servicios, wallet, t, onCrear, onCrearLote })
 
   // ---- Cuentas ----
   const filasCtaConServicio = useMemo(
-    () => filasCta.map((f) => ({ ...f, servicio: servicioPorDefecto(servicios, f.plataforma, 'Seguidores') })),
+    () =>
+      filasCta.map((f) => ({
+        ...f,
+        servicio: servicioPorVariante(servicios, f.plataforma, 'Seguidores', f.variante),
+        tieneVariante: !!variantesDisponibles(servicios, f.plataforma, 'Seguidores').latino,
+      })),
     [filasCta, servicios]
   );
 
@@ -306,6 +348,12 @@ export default function Impulsar({ servicios, wallet, t, onCrear, onCrearLote })
                       {PLATAFORMAS_IMPULSAR.map((p) => <option key={p} value={p}>{etiquetaPlataforma(p)}</option>)}
                     </select>
                   </div>
+                  {f.tieneVarianteLikes && (
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[10px]" style={{ color: t.muted }}>Likes:</span>
+                      <ToggleVariante valor={f.varianteLikes} onChange={(v) => actualizarFilaPub(f.id, 'varianteLikes', v)} t={t} />
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                     {f.metricas.map((m) => (
                       <InputCantidad
@@ -357,7 +405,7 @@ export default function Impulsar({ servicios, wallet, t, onCrear, onCrearLote })
             >
               <Sparkles size={16} style={{ color: '#F5A623' }} className="shrink-0" />
               <p className="text-xs font-medium" style={{ color: t.text }}>
-                Impulsa <strong>3 cuentas o más</strong> al mismo tiempo y obtén <strong style={{ color: '#F5A623' }}>10% de descuento</strong> en el total.
+                Impulsa <strong>3 cuentas o más</strong> al mismo tiempo y obtén <strong style={{ color: '#F5A623' }}>15% de descuento</strong> en el total.
               </p>
             </div>
             <div className="space-y-3">
@@ -404,6 +452,12 @@ export default function Impulsar({ servicios, wallet, t, onCrear, onCrearLote })
                       t={t}
                     />
                   </div>
+                  {f.tieneVariante && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-[10px]" style={{ color: t.muted }}>Seguidores:</span>
+                      <ToggleVariante valor={f.variante} onChange={(v) => actualizarFilaCta(f.id, 'variante', v)} t={t} />
+                    </div>
+                  )}
                 </motion.div>
               ))}
             </div>
