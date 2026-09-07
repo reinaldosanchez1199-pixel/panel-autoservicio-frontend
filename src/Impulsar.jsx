@@ -474,11 +474,11 @@ export default function Impulsar({ servicios, wallet, t, onCrear, onCrearLote })
                 <p className="text-lg font-display font-bold" style={{ color: '#F5A623' }}>{totalCta.toLocaleString()} ♦</p>
                 {loteListo ? (
                   <span className="flex items-center gap-1 text-[10px] font-bold mt-0.5" style={{ color: '#F5A623' }}>
-                    <Sparkles size={10} /> Descuento de lote -10% aplicado
+                    <Sparkles size={10} /> Descuento de lote -{DESCUENTO_LOTE_PCT}% aplicado
                   </span>
                 ) : cuentasValidas.length > 0 ? (
                   <p className="text-[10px] mt-0.5" style={{ color: t.muted }}>
-                    Agrega {MINIMO_CUENTAS_LOTE - cuentasValidas.length} cuenta{MINIMO_CUENTAS_LOTE - cuentasValidas.length === 1 ? '' : 's'} más para el 10%
+                    Agrega {MINIMO_CUENTAS_LOTE - cuentasValidas.length} cuenta{MINIMO_CUENTAS_LOTE - cuentasValidas.length === 1 ? '' : 's'} más para el {DESCUENTO_LOTE_PCT}%
                   </p>
                 ) : null}
               </div>
