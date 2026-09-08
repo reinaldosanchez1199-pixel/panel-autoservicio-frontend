@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, X, Image as ImageIcon, Package, Wallet, ArrowLeft, LogOut, Shield, Search, Link2, CheckCircle2, Clock, XCircle, Undo2, Gift } from 'lucide-react';
+import { Check, X, Image as ImageIcon, Package, Wallet, ArrowLeft, LogOut, Shield, Search, Link2, CheckCircle2, Clock, XCircle, Undo2, Gift, KeyRound } from 'lucide-react';
 import { api } from './api';
 import AnimatedBackground from './AnimatedBackground';
 import { theme, GRADIENT, GRADIENT_SOFT, FONT_IMPORT } from './theme';
@@ -21,6 +21,8 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
   const [cargandoOrdenes, setCargandoOrdenes] = useState(false);
   const [busquedaEmail, setBusquedaEmail] = useState('');
   const [referidosSospechosos, setReferidosSospechosos] = useState([]);
+  const [solicitudesReset, setSolicitudesReset] = useState([]);
+  const [passwordsGeneradas, setPasswordsGeneradas] = useState({});
   const [clientes, setClientes] = useState([]);
   const [cargandoClientes, setCargandoClientes] = useState(false);
   const [busquedaClienteEmail, setBusquedaClienteEmail] = useState('');
@@ -76,6 +78,24 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
   }, []);
 
   useEffect(() => { if (tab === 'referidos') cargarReferidos(); }, [tab, cargarReferidos]);
+
+  const cargarSolicitudesReset = useCallback(async () => {
+    try {
+      setSolicitudesReset(await api.adminSolicitudesReset());
+    } catch (err) {
+      setError(err.message);
+    }
+  }, []);
+
+  useEffect(() => { if (tab === 'accesos') cargarSolicitudesReset(); }, [tab, cargarSolicitudesReset]);
+
+  const resolverAcceso = async (id) => {
+    try {
+      const r = await api.adminResolverReset(id);
+      setPasswordsGeneradas((p) => ({ ...p, [id]: r.passwordTemporal }));
+      setSolicitudesReset((s) => s.map((x) => (x.id === id ? { ...x, resuelto: true } : x)));
+    } catch (err) { setError(err.message); }
+  };
 
   const buscarClientes = useCallback(async (email) => {
     setCargandoClientes(true);
@@ -235,6 +255,13 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
             style={{ background: tab === 'clientes' ? GRADIENT : t.surface, color: tab === 'clientes' ? '#fff' : t.muted, border: `1px solid ${t.border}` }}
           >
             <Wallet size={15} /> Clientes
+          </button>
+          <button
+            onClick={() => setTab('accesos')}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold"
+            style={{ background: tab === 'accesos' ? GRADIENT : t.surface, color: tab === 'accesos' ? '#fff' : t.muted, border: `1px solid ${t.border}` }}
+          >
+            <KeyRound size={15} /> Accesos {solicitudesReset.filter((s) => !s.resuelto).length > 0 ? `(${solicitudesReset.filter((s) => !s.resuelto).length})` : ''}
           </button>
         </div>
 
@@ -529,6 +556,40 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {tab === 'accesos' && (
+          <div className="space-y-3">
+            <p className="text-xs mb-2" style={{ color: t.muted }}>
+              Solicitudes de recuperación de contraseña. Verifica al cliente por WhatsApp antes de generar su clave temporal — solo se muestra una vez, cópiala y envíasela directo.
+            </p>
+            {solicitudesReset.length === 0 && (
+              <p className="text-sm text-center py-10" style={{ color: t.muted }}>No hay solicitudes pendientes.</p>
+            )}
+            {solicitudesReset.map((s) => (
+              <div key={s.id} className="rounded-2xl p-4" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)' }}>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate">{s.email}</p>
+                    <p className="text-[10px]" style={{ color: t.muted }}>{new Date(s.creado_en).toLocaleString()}</p>
+                  </div>
+                  {!passwordsGeneradas[s.id] && (
+                    <button onClick={() => resolverAcceso(s.id)} className="text-xs font-semibold px-3.5 py-2 rounded-lg shrink-0" style={{ background: GRADIENT, color: '#fff' }}>
+                      Generar contraseña temporal
+                    </button>
+                  )}
+                </div>
+                {passwordsGeneradas[s.id] && (
+                  <div className="mt-3 pt-3 flex items-center justify-between gap-3" style={{ borderTop: `1px solid ${t.inputBorder}` }}>
+                    <div>
+                      <p className="text-[10px]" style={{ color: t.muted }}>Contraseña temporal — envíasela por WhatsApp ahora</p>
+                      <p className="font-display font-bold text-sm" style={{ color: '#F5A623' }}>{passwordsGeneradas[s.id]}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>

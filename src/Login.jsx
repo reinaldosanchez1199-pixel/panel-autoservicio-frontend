@@ -34,6 +34,7 @@ export default function Login({ onAuth }) {
   const [nombre, setNombre] = useState('');
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(false);
+  const [resetEnviado, setResetEnviado] = useState(false);
   const t = theme.dark;
   const googleBtnRef = useRef(null);
 
@@ -42,6 +43,11 @@ export default function Login({ onAuth }) {
     setError('');
     setCargando(true);
     try {
+      if (modo === 'olvide') {
+        await api.olvidePassword(email);
+        setResetEnviado(true);
+        return;
+      }
       const data = modo === 'login' ? await api.login(email, password) : await api.registro(email, password, nombre, codigoReferido);
       setToken(data.token);
       onAuth();
@@ -147,24 +153,35 @@ export default function Login({ onAuth }) {
               <span className="font-display text-lg font-extrabold">Viralizame</span>
             </div>
 
-            <div className="flex gap-1 mb-6 p-1 rounded-xl" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
+            {modo === 'olvide' ? (
               <button
                 type="button"
-                onClick={() => setModo('login')}
-                className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
-                style={{ background: modo === 'login' ? GRADIENT : 'transparent', color: modo === 'login' ? '#fff' : t.muted }}
+                onClick={() => { setModo('login'); setResetEnviado(false); setError(''); }}
+                className="text-xs font-semibold mb-4"
+                style={{ color: '#C4B5FD' }}
               >
-                Iniciar sesión
+                ← Volver a iniciar sesión
               </button>
-              <button
-                type="button"
-                onClick={() => setModo('registro')}
-                className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
-                style={{ background: modo === 'registro' ? GRADIENT : 'transparent', color: modo === 'registro' ? '#fff' : t.muted }}
-              >
-                Crear cuenta
-              </button>
-            </div>
+            ) : (
+              <div className="flex gap-1 mb-6 p-1 rounded-xl" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
+                <button
+                  type="button"
+                  onClick={() => setModo('login')}
+                  className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
+                  style={{ background: modo === 'login' ? GRADIENT : 'transparent', color: modo === 'login' ? '#fff' : t.muted }}
+                >
+                  Iniciar sesión
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModo('registro')}
+                  className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
+                  style={{ background: modo === 'registro' ? GRADIENT : 'transparent', color: modo === 'registro' ? '#fff' : t.muted }}
+                >
+                  Crear cuenta
+                </button>
+              </div>
+            )}
 
             {codigoReferidoUrl && modo === 'registro' && (
               <motion.p
@@ -187,16 +204,24 @@ export default function Login({ onAuth }) {
             )}
 
             {GOOGLE_CLIENT_ID && (
-              <>
+              <div hidden={modo === 'olvide'}>
                 <div className="flex justify-center mb-4" ref={googleBtnRef} />
                 <div className="flex items-center gap-2 mb-4">
                   <div className="flex-1 h-px" style={{ background: t.inputBorder }} />
                   <span className="text-[10px]" style={{ color: t.muted }}>o con tu email</span>
                   <div className="flex-1 h-px" style={{ background: t.inputBorder }} />
                 </div>
-              </>
+              </div>
             )}
 
+            {modo === 'olvide' && resetEnviado ? (
+              <div className="text-center py-4">
+                <p className="text-sm font-semibold mb-2">✓ Solicitud enviada</p>
+                <p className="text-xs leading-relaxed" style={{ color: t.muted }}>
+                  Si ese correo está registrado, un administrador te va a contactar por WhatsApp en breve para verificarte y darte acceso de nuevo.
+                </p>
+              </div>
+            ) : (
             <form onSubmit={submit}>
               <AnimatePresence mode="wait">
                 {modo === 'registro' && (
@@ -214,6 +239,12 @@ export default function Login({ onAuth }) {
                 )}
               </AnimatePresence>
 
+              {modo === 'olvide' && (
+                <p className="text-xs mb-3" style={{ color: t.muted }}>
+                  Escribe el correo con el que te registraste — te contactaremos por WhatsApp para verificarte.
+                </p>
+              )}
+
               <input
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -223,16 +254,29 @@ export default function Login({ onAuth }) {
                 className="w-full mb-3 px-4 py-3 rounded-xl text-sm outline-none transition-shadow"
                 style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.text }}
               />
-              <input
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                type="password"
-                required
-                minLength={8}
-                placeholder="Contraseña (mínimo 8 caracteres)"
-                className="w-full mb-5 px-4 py-3 rounded-xl text-sm outline-none"
-                style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.text }}
-              />
+              {modo !== 'olvide' && (
+                <input
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  type="password"
+                  required
+                  minLength={8}
+                  placeholder="Contraseña (mínimo 8 caracteres)"
+                  className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                  style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.text }}
+                />
+              )}
+              {modo === 'login' && (
+                <button
+                  type="button"
+                  onClick={() => { setModo('olvide'); setError(''); }}
+                  className="text-[11px] font-medium mb-2 mt-1.5 block"
+                  style={{ color: t.muted }}
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
+              )}
+              {modo !== 'login' && <div className="mb-2" />}
 
               {error && (
                 <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs mb-4 px-3 py-2 rounded-lg" style={{ color: '#FCA5C7', background: 'rgba(236,72,153,0.1)' }}>
@@ -248,10 +292,11 @@ export default function Login({ onAuth }) {
                 className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-display font-bold text-sm"
                 style={{ background: GRADIENT, color: '#fff', opacity: cargando ? 0.7 : 1, boxShadow: '0 8px 30px rgba(124,58,237,0.35)' }}
               >
-                {cargando ? 'Procesando...' : modo === 'login' ? 'Entrar a mi cuenta' : 'Crear cuenta gratis'}
+                {cargando ? 'Procesando...' : modo === 'login' ? 'Entrar a mi cuenta' : modo === 'olvide' ? 'Solicitar recuperación' : 'Crear cuenta gratis'}
                 {!cargando && <ArrowRight size={16} />}
               </motion.button>
             </form>
+            )}
           </div>
         </div>
       </div>

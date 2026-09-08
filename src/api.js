@@ -93,6 +93,7 @@ export const api = {
   // Auth (rutas públicas, sin /api)
   registro: (email, password, nombre, codigoReferido) => request('/auth/registro', { method: 'POST', body: { email, password, nombre, codigoReferido } }),
   login: (email, password) => request('/auth/login', { method: 'POST', body: { email, password } }),
+  olvidePassword: (email) => request('/auth/olvide-password', { method: 'POST', body: { email } }),
   loginGoogle: (credential, codigoReferido) => request('/auth/google', { method: 'POST', body: { credential, codigoReferido } }),
 
   // Cliente
@@ -135,6 +136,8 @@ export const api = {
   adminAjustarCreditos: (id, monto, motivo) => request(`/api/admin/clientes/${id}/ajustar-creditos`, { method: 'POST', body: { monto, motivo } }),
   adminCancelarItem: (id, motivo) => request(`/api/admin/orders/items/${id}/cancelar`, { method: 'POST', body: { motivo } }),
   adminReferidosSospechosos: () => request('/api/admin/referidos/sospechosos'),
+  adminSolicitudesReset: () => request('/api/admin/solicitudes-reset'),
+  adminResolverReset: (id) => request(`/api/admin/solicitudes-reset/${id}/resolver`, { method: 'POST' }),
   adminAprobarReferido: (id) => request(`/api/admin/referidos/${id}/aprobar`, { method: 'POST' }),
   adminRechazarReferido: (id) => request(`/api/admin/referidos/${id}/rechazar`, { method: 'POST' }),
 };
