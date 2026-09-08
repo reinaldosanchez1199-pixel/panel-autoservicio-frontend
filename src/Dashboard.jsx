@@ -462,10 +462,19 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
 
   // Seguidores impulsan la CUENTA (necesitan el link del perfil); likes/views/etc
   // impulsan una PUBLICACIÓN puntual (necesitan el link del post). El botón y el
-  // placeholder se adaptan para que quede claro qué link va ahí.
+  // placeholder se adaptan según la red social elegida para que quede claro
+  // qué link va ahí (antes siempre mostraba un ejemplo de Instagram, aunque
+  // hubiera elegido Facebook/TikTok/etc.).
   const modoImpulso = servicioSel ? (/segui/i.test(servicioSel.tipo) ? 'cuenta' : 'publicacion') : null;
   const textoBotonImpulso = modoImpulso === 'cuenta' ? 'Impulsar cuenta' : modoImpulso === 'publicacion' ? 'Impulsar publicación' : 'Lanzar campaña';
-  const placeholderLink = modoImpulso === 'cuenta' ? 'https://instagram.com/tu_usuario' : 'https://instagram.com/p/tu_publicacion';
+  const EJEMPLOS_LINK = {
+    Instagram: { cuenta: 'https://instagram.com/tu_usuario', publicacion: 'https://instagram.com/p/tu_publicacion' },
+    Facebook: { cuenta: 'https://facebook.com/tu_pagina', publicacion: 'https://facebook.com/tu_pagina/posts/tu_publicacion' },
+    TikTok: { cuenta: 'https://tiktok.com/@tu_usuario', publicacion: 'https://tiktok.com/@tu_usuario/video/1234567890' },
+    Twitter: { cuenta: 'https://x.com/tu_usuario', publicacion: 'https://x.com/tu_usuario/status/1234567890' },
+    YouTube: { cuenta: 'https://youtube.com/@tu_canal', publicacion: 'https://youtube.com/watch?v=tu_video' },
+  };
+  const placeholderLink = (EJEMPLOS_LINK[plataformaSel] || EJEMPLOS_LINK.Instagram)[modoImpulso === 'cuenta' ? 'cuenta' : 'publicacion'];
 
   const impulsar = async () => {
     if (!servicioSel) return;
