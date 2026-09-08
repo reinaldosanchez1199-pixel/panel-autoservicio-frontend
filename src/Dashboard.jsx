@@ -217,6 +217,32 @@ function GuiaPrimerosPasos({ t }) {
   );
 }
 
+const TOTAL_PASOS_TOUR = 3;
+
+// Tooltip guiado que resalta, uno por uno, los 3 pasos de "Crear campaña" la
+// primera vez que un cliente entra (antes de tener ningún pedido/recarga real).
+function CalloutTour({ paso, texto, onSiguiente, onCerrar, t }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -6, height: 0 }} animate={{ opacity: 1, y: 0, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+      className="overflow-hidden mb-3"
+    >
+      <div className="rounded-xl px-4 py-3 flex items-start gap-3" style={{ background: GRADIENT_SOFT, border: '1px solid rgba(124,58,237,0.4)' }}>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-bold mb-0.5 tracking-wide" style={{ color: '#C4B5FD' }}>PASO {paso} DE {TOTAL_PASOS_TOUR}</p>
+          <p className="text-xs leading-relaxed">{texto}</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button onClick={onCerrar} className="text-[10px] font-medium" style={{ color: t.muted }}>Omitir</button>
+          <button onClick={onSiguiente} className="text-[10px] font-bold px-3 py-1.5 rounded-full whitespace-nowrap" style={{ background: GRADIENT, color: '#fff' }}>
+            {paso >= TOTAL_PASOS_TOUR ? 'Entendido' : 'Siguiente'}
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 function formatoRelativo(fechaISO) {
   const diffMs = Date.now() - new Date(fechaISO).getTime();
   const min = Math.floor(diffMs / 60000);
@@ -275,6 +301,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
   const actividadRef = useRef(null);
 
   const [cargando, setCargando] = useState(true);
+  const [tourPaso, setTourPaso] = useState(0);
   const [error, setError] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [mensaje, setMensaje] = useState('');
@@ -308,6 +335,24 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
   }, []);
 
   useEffect(() => { cargarTodo(); }, [cargarTodo]);
+
+  // Tour de bienvenida: solo para clientes nuevos de verdad (sin ningún
+  // movimiento real todavía) y que no lo hayan cerrado antes.
+  useEffect(() => {
+    if (!cargando && historial.length === 0) {
+      try {
+        if (!localStorage.getItem('viralizame_tour_visto')) setTourPaso(1);
+      } catch {
+        setTourPaso(1);
+      }
+    }
+  }, [cargando]);
+
+  const cerrarTour = () => {
+    setTourPaso(0);
+    try { localStorage.setItem('viralizame_tour_visto', '1'); } catch {}
+  };
+  const avanzarTour = () => (tourPaso >= TOTAL_PASOS_TOUR ? cerrarTour() : setTourPaso((p) => p + 1));
 
   useEffect(() => {
     if (navActivo !== 'pedidos' || ordenes !== null) return;
@@ -808,6 +853,11 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
               <p className="text-xs py-6 text-center" style={{ color: t.muted }}>Todavía no hay servicios activos en el catálogo.</p>
             ) : (
               <>
+                <AnimatePresence>
+                  {tourPaso === 1 && (
+                    <CalloutTour paso={1} t={t} onSiguiente={avanzarTour} onCerrar={cerrarTour} texto="Elige aquí la red social — el catálogo se filtra solo para mostrarte lo disponible en esa plataforma." />
+                  )}
+                </AnimatePresence>
                 {/* Paso 1: plataforma */}
                 <div className="flex gap-2 mb-4 overflow-x-auto pb-1 no-scrollbar">
                   {plataformas.map((p) => {
@@ -826,6 +876,11 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                   })}
                 </div>
 
+                <AnimatePresence>
+                  {tourPaso === 2 && (
+                    <CalloutTour paso={2} t={t} onSiguiente={avanzarTour} onCerrar={cerrarTour} texto="Ahora elige qué quieres impulsar — seguidores, likes, reproducciones y más." />
+                  )}
+                </AnimatePresence>
                 {/* Paso 2: servicio (dropdown propio — el <select> nativo usa colores del SO y no se lee) */}
                 <div className="relative mb-3">
                   <button
@@ -886,6 +941,11 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                   </motion.p>
                 )}
 
+                <AnimatePresence>
+                  {tourPaso === 3 && servicioSel && (
+                    <CalloutTour paso={3} t={t} onSiguiente={avanzarTour} onCerrar={cerrarTour} texto="Ajusta la cantidad — el precio se calcula al instante. Cuando bajes, pega el link de tu perfil o publicación y dale a Impulsar." />
+                  )}
+                </AnimatePresence>
                 {/* Paso 3: cantidad + precio en vivo */}
                 {servicioSel && (
                   <div className="rounded-xl px-3.5 py-3 mb-3 flex items-center justify-between" style={{ background: GRADIENT_SOFT, border: '1px solid #EC489944' }}>
