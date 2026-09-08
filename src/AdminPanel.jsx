@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Check, X, Image as ImageIcon, Package, Wallet, ArrowLeft, LogOut, Shield, Search, Link2, CheckCircle2, Clock, XCircle, Undo2, Gift } from 'lucide-react';
 import { api } from './api';
 import AnimatedBackground from './AnimatedBackground';
-import { theme, GRADIENT, FONT_IMPORT } from './theme';
+import { theme, GRADIENT, GRADIENT_SOFT, FONT_IMPORT } from './theme';
 
 const ESTADO_INFO = {
   completado: { icon: CheckCircle2, color: '#10B981', label: 'Completado' },
@@ -441,6 +441,26 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
                 Buscar
               </button>
             </form>
+
+            {!cargandoClientes && clientes.length > 0 && !busquedaClienteEmail && (() => {
+              const totalPendiente = clientes.reduce((s, c) => s + parseFloat(c.saldo_creditos), 0);
+              // Peor caso: todo el saldo se gasta en Seguidores (el margen más
+              // bajo del catálogo, ~6x) — reserva sugerida = créditos/300
+              // (créditos/600 de costo real, ×2 de colchón de seguridad).
+              const reservaSugerida = Math.round(totalPendiente / 300);
+              return (
+                <div className="rounded-2xl px-4 py-3 mb-4 flex items-center justify-between gap-4" style={{ background: GRADIENT_SOFT, border: '1px solid rgba(124,58,237,0.3)' }}>
+                  <div>
+                    <p className="text-[10px]" style={{ color: t.muted }}>Saldo pendiente en toda la plataforma</p>
+                    <p className="font-display font-bold text-sm">{Math.round(totalPendiente).toLocaleString()} ♦</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px]" style={{ color: t.muted }}>Reserva sugerida por proveedor</p>
+                    <p className="font-display font-bold text-sm" style={{ color: '#F5A623' }}>${reservaSugerida.toLocaleString()}</p>
+                  </div>
+                </div>
+              );
+            })()}
 
             {cargandoClientes && <p className="text-sm" style={{ color: t.muted }}>Cargando...</p>}
             {!cargandoClientes && clientes.length === 0 && (
