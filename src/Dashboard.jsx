@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import {
-  Sparkles, Link2, ChevronRight, ChevronDown, CheckCircle2, Clock, Sun, Moon, Star, Bookmark, Rocket,
+  Sparkles, Link2, ChevronRight, ChevronDown, CheckCircle2, Check, Clock, Sun, Moon, Star, Bookmark, Rocket,
   Home, Package, CreditCard, Activity, User, Menu, X, LogOut, Shield, Cpu, Upload, Zap, Flame, Gem, Crown, Trophy, MessageCircle, Info, Gift,
 } from 'lucide-react';
 import { api } from './api';
@@ -738,11 +738,18 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                 </div>
               ) : (
               <>
+              <div className="rounded-xl px-3.5 py-3 mb-3" style={{ background: GRADIENT_SOFT, border: '1px solid rgba(124,58,237,0.3)' }}>
+                <p className="text-xs font-bold mb-0.5">Elige tu recarga y te ayudamos con el pago</p>
+                <p className="text-[11px] leading-relaxed" style={{ color: t.muted }}>
+                  Selecciona el monto que deseas recargar y luego tu método de pago. Te redirigimos a WhatsApp, donde nuestro equipo te asiste personalmente para completar el pago de forma segura y acreditar tus Viral Credits.
+                </p>
+              </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
                 {paquetesRecarga.map((p, i) => {
                   const Icono = TIER_ICONOS[Math.min(i, TIER_ICONOS.length - 1)];
                   const esMejorValor = i === paquetesRecarga.length - 1;
                   const activo = paqueteSeleccionado === p.id;
+                  const bonoExtra = Math.round(Number(p.creditos_otorgados) - Number(p.precio_usd) * 100);
                   return (
                     <motion.button
                       key={p.id} whileHover={{ y: -3, scale: 1.02 }} whileTap={{ scale: 0.97 }}
@@ -750,7 +757,8 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                       className="rounded-xl p-3 text-left relative overflow-hidden"
                       style={{
                         background: activo ? GRADIENT_SOFT : t.input,
-                        border: activo ? '1px solid #EC4899' : esMejorValor ? '1px solid rgba(245,166,35,0.5)' : `1px solid ${t.inputBorder}`,
+                        border: activo ? '2px solid #EC4899' : esMejorValor ? '1px solid rgba(245,166,35,0.5)' : `1px solid ${t.inputBorder}`,
+                        boxShadow: activo ? '0 4px 16px rgba(236,72,153,0.25)' : 'none',
                       }}
                     >
                       {esMejorValor && (
@@ -758,9 +766,17 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                           MEJOR VALOR
                         </span>
                       )}
+                      {activo && (
+                        <span className="absolute top-1.5 left-1.5 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: '#EC4899' }}>
+                          <Check size={10} color="#fff" strokeWidth={3} />
+                        </span>
+                      )}
                       <Icono size={14} style={{ color: esMejorValor ? '#F5A623' : '#C4B5FD' }} className="mb-1.5" />
                       <p className="text-xs" style={{ color: t.muted }}>${p.precio_usd} USD</p>
                       <p className="font-display font-bold text-sm">{Number(p.creditos_otorgados).toLocaleString()} ♦</p>
+                      {bonoExtra > 0 && (
+                        <p className="text-[10px] font-semibold mt-0.5" style={{ color: '#10B981' }}>+{bonoExtra.toLocaleString()} extra</p>
+                      )}
                     </motion.button>
                   );
                 })}
@@ -787,7 +803,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                   </div>
                   {WHATSAPP_NUMERO && (
                     <p className="text-[10px] mt-2" style={{ color: t.muted }}>
-                      ¿No se abrió WhatsApp? Escríbenos directo a {formatoNumeroWhatsApp(WHATSAPP_NUMERO)}
+                      ¿No se abrió WhatsApp automáticamente? Escríbenos directamente y te ayudamos a completar tu recarga.
                     </p>
                   )}
                 </div>
