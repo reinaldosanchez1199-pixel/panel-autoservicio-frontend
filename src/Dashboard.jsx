@@ -775,7 +775,12 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                       <p className="text-xs" style={{ color: t.muted }}>${p.precio_usd} USD</p>
                       <p className="font-display font-bold text-sm">{Number(p.creditos_otorgados).toLocaleString()} ♦</p>
                       {bonoExtra > 0 && (
-                        <p className="text-[10px] font-semibold mt-0.5" style={{ color: '#10B981' }}>+{bonoExtra.toLocaleString()} extra</p>
+                        <span
+                          className="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                          style={{ background: 'rgba(16,185,129,0.18)', color: '#10B981', border: '1px solid rgba(16,185,129,0.35)' }}
+                        >
+                          Incluye +{bonoExtra.toLocaleString()} de regalo
+                        </span>
                       )}
                     </motion.button>
                   );
