@@ -3,14 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import {
   Sparkles, Link2, ChevronRight, ChevronDown, CheckCircle2, Clock, Sun, Moon, Star, Bookmark, Rocket,
-  Home, Package, CreditCard, Activity, User, Menu, X, LogOut, Shield, Cpu, Upload, Zap, Flame, Gem, Crown, Trophy, MessageCircle, Info,
+  Home, Package, CreditCard, Activity, User, Menu, X, LogOut, Shield, Cpu, Upload, Zap, Flame, Gem, Crown, Trophy, MessageCircle, Info, Gift,
 } from 'lucide-react';
 import { api } from './api';
 import AnimatedBackground from './AnimatedBackground';
 import AnimatedNumber from './AnimatedNumber';
 import AIChat from './AIChat';
 import LevelProgress from './LevelProgress';
-import Cuenta from './Cuenta';
+import Cuenta, { TarjetaReferidos } from './Cuenta';
 import Pedidos from './Pedidos';
 import Impulsar from './Impulsar';
 import { etiquetaPlataforma, PLATAFORMA_COLOR } from './plataformas';
@@ -96,6 +96,7 @@ const NAV_ITEMS = [
   { id: 'pedidos', label: 'Pedidos', icon: Package },
   { id: 'recargas', label: 'Recargas', icon: CreditCard },
   { id: 'actividad', label: 'Actividad', icon: Activity },
+  { id: 'referidos', label: 'Invita y gana', icon: Gift },
   { id: 'cuenta', label: 'Cuenta', icon: User },
 ];
 
@@ -825,6 +826,8 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
           <Cuenta me={me} wallet={wallet} plataformas={plataformas} perfiles={perfiles} onAgregarPerfil={agregarPerfil} onBorrarPerfil={borrarPerfil} t={t} />
         ) : navActivo === 'impulsar' ? (
           <Impulsar servicios={servicios} wallet={wallet} t={t} onCrear={crearOrdenesMultiples} onCrearLote={crearCuentasEnLote} />
+        ) : navActivo === 'referidos' ? (
+          <TarjetaReferidos me={me} t={t} />
         ) : (
         <>
         {bundles.length > 0 && (

@@ -69,7 +69,7 @@ function FormularioPerfil({ plataformas, onAgregar, t }) {
   );
 }
 
-function TarjetaReferidos({ me, t }) {
+export function TarjetaReferidos({ me, t }) {
   const [copiado, setCopiado] = useState(false);
   if (!me?.codigo_referido) return null;
 
@@ -86,13 +86,19 @@ function TarjetaReferidos({ me, t }) {
 
   return (
     <div className="rounded-3xl p-6" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)' }}>
-      <div className="flex items-center gap-2 mb-1">
+      <div className="flex items-center gap-2 mb-3">
         <Gift size={15} style={{ color: '#F5A623' }} />
         <h2 className="font-display font-bold text-lg">Invita y gana</h2>
       </div>
-      <p className="text-xs mb-4" style={{ color: t.muted }}>
-        Comparte tu link — cuando la persona que invitas hace su primera recarga, ambos reciben <strong>500 Viral Credits</strong>.
-      </p>
+
+      <div className="rounded-2xl px-5 py-5 mb-4 text-center" style={{ background: GRADIENT }}>
+        <p className="font-display font-extrabold text-2xl sm:text-3xl leading-tight text-white">
+          500 Viral Credits para ti<br className="hidden sm:block" /> + 500 para tu referido
+        </p>
+        <p className="text-xs mt-2" style={{ color: 'rgba(255,255,255,0.85)' }}>
+          Cuando tu referido haga su primera recarga.
+        </p>
+      </div>
 
       <div className="flex items-center gap-2 mb-4">
         <div className="flex-1 min-w-0 px-3.5 py-2.5 rounded-xl text-xs truncate" style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.text }}>
