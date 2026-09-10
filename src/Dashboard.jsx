@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import {
-  Sparkles, Link2, ChevronRight, ChevronDown, CheckCircle2, Check, Clock, Sun, Moon, Star, Bookmark, Rocket,
+  Sparkles, Link2, ChevronRight, ChevronDown, CheckCircle2, Clock, Sun, Moon, Star, Bookmark, Rocket,
   Home, Package, CreditCard, Activity, User, Menu, X, LogOut, Shield, Cpu, Upload, Zap, Flame, Gem, Crown, Trophy, MessageCircle, Info, Gift,
 } from 'lucide-react';
 import { api } from './api';
@@ -749,7 +749,6 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                   const Icono = TIER_ICONOS[Math.min(i, TIER_ICONOS.length - 1)];
                   const esMejorValor = i === paquetesRecarga.length - 1;
                   const activo = paqueteSeleccionado === p.id;
-                  const bonoExtra = Math.round(Number(p.creditos_otorgados) - Number(p.precio_usd) * 100);
                   return (
                     <motion.button
                       key={p.id} whileHover={{ y: -3, scale: 1.02 }} whileTap={{ scale: 0.97 }}
@@ -766,22 +765,9 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                           MEJOR VALOR
                         </span>
                       )}
-                      {activo && (
-                        <span className="absolute top-1.5 left-1.5 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: '#EC4899' }}>
-                          <Check size={10} color="#fff" strokeWidth={3} />
-                        </span>
-                      )}
                       <Icono size={14} style={{ color: esMejorValor ? '#F5A623' : '#C4B5FD' }} className="mb-1.5" />
                       <p className="text-xs" style={{ color: t.muted }}>${p.precio_usd} USD</p>
                       <p className="font-display font-bold text-sm">{Number(p.creditos_otorgados).toLocaleString()} ♦</p>
-                      {bonoExtra > 0 && (
-                        <span
-                          className="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
-                          style={{ background: 'rgba(16,185,129,0.18)', color: '#10B981', border: '1px solid rgba(16,185,129,0.35)' }}
-                        >
-                          Incluye +{bonoExtra.toLocaleString()} de regalo
-                        </span>
-                      )}
                     </motion.button>
                   );
                 })}
