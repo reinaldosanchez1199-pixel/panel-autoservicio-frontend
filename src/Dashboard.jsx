@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import {
   Sparkles, Link2, ChevronRight, ChevronDown, CheckCircle2, Clock, Sun, Moon, Star, Bookmark, Rocket,
-  Home, Package, CreditCard, Activity, User, Menu, X, LogOut, Shield, Cpu, Upload, Zap, Flame, Gem, Crown, Trophy, MessageCircle, Info, Gift,
+  Home, Package, CreditCard, Activity, User, Menu, X, LogOut, Shield, Cpu, Zap, Flame, Gem, Crown, Trophy, MessageCircle, Info, Gift,
 } from 'lucide-react';
 import { api } from './api';
 import AnimatedBackground from './AnimatedBackground';
@@ -315,7 +315,6 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
   const [historial, setHistorial] = useState([]);
   const [paquetesRecarga, setPaquetesRecarga] = useState([]);
   const [niveles, setNiveles] = useState([]);
-  const [comprobante, setComprobante] = useState(null);
   const [paqueteSeleccionado, setPaqueteSeleccionado] = useState(null);
   const [metodoPagoSel, setMetodoPagoSel] = useState(null);
   const [recargaConfirmada, setRecargaConfirmada] = useState(null);
@@ -529,17 +528,23 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
     }
   };
 
-  const enviarRecarga = async () => {
-    if (!paqueteSeleccionado || !metodoPagoSel) { setMensaje('Elige un paquete y un método de pago.'); return; }
+  // Se crea la solicitud de recarga (estado 'pendiente') en el momento en que
+  // el cliente elige el método de pago, no cuando "confirma" después — antes,
+  // si el cliente pagaba por WhatsApp y nunca volvía a tocar "Ya pagué", la
+  // solicitud jamás se creaba y no aparecía para que el admin la aprobara.
+  const seleccionarMetodoPago = async (medio) => {
+    if (!paqueteSeleccionado) return;
+    setMetodoPagoSel(medio);
     setMensaje(''); setEnviando(true);
     try {
       const paquete = paquetesRecarga.find((p) => p.id === paqueteSeleccionado);
-      await api.recargaManual(paqueteSeleccionado, metodoPagoSel, comprobante);
+      await api.recargaManual(paqueteSeleccionado, medio, null);
       celebrar();
       setRecargaConfirmada(paquete || true);
-      setPaqueteSeleccionado(null); setComprobante(null); setMetodoPagoSel(null);
+      setPaqueteSeleccionado(null); setMetodoPagoSel(null);
     } catch (err) {
       setMensaje(`Error: ${err.message}`);
+      setMetodoPagoSel(null);
     } finally {
       setEnviando(false);
     }
@@ -772,7 +777,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                   );
                 })}
               </div>
-              {paqueteSeleccionado && !metodoPagoSel && (
+              {paqueteSeleccionado && (
                 <div>
                   <p className="text-xs font-semibold mb-2" style={{ color: t.muted }}>¿Cómo vas a pagar?</p>
                   <div className="flex flex-wrap gap-1.5">
@@ -783,9 +788,9 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                           key={medio}
                           href={WHATSAPP_NUMERO ? enlaceWhatsApp(`Hola, quiero recargar ${Number(paquete?.creditos_otorgados || 0).toLocaleString()} Viral Credits ($${paquete?.precio_usd} USD) en Viralizame pagando con ${medio}. ¿Me confirman los datos para completar el pago?`) : undefined}
                           target="_blank" rel="noopener noreferrer"
-                          onClick={() => setMetodoPagoSel(medio)}
+                          onClick={() => seleccionarMetodoPago(medio)}
                           className="text-xs font-medium px-3 py-1.5 rounded-full cursor-pointer"
-                          style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}
+                          style={{ background: t.input, border: `1px solid ${t.inputBorder}`, opacity: enviando ? 0.6 : 1, pointerEvents: enviando ? 'none' : 'auto' }}
                         >
                           {medio}
                         </a>
@@ -797,28 +802,6 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                       ¿No se abrió WhatsApp automáticamente? Escríbenos directamente y te ayudamos a completar tu recarga.
                     </p>
                   )}
-                </div>
-              )}
-              {paqueteSeleccionado && metodoPagoSel && (
-                <div>
-                  {WHATSAPP_NUMERO && (
-                    <p className="text-[11px] mb-2 flex items-center gap-1.5" style={{ color: t.muted }}>
-                      <MessageCircle size={12} style={{ color: '#25D366' }} /> Te enviamos los datos de {metodoPagoSel} por WhatsApp. Cuando pagues, confirma aquí abajo — el comprobante que ya nos mandaste por WhatsApp es suficiente.
-                    </p>
-                  )}
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                    <motion.button whileHover={{ scale: 1.03 }} onClick={enviarRecarga} disabled={enviando} className="text-xs font-bold px-4 py-2.5 rounded-full" style={{ background: GRADIENT, color: '#fff', opacity: enviando ? 0.6 : 1 }}>
-                      {enviando ? 'Enviando...' : 'Ya pagué, avisé por WhatsApp'}
-                    </motion.button>
-                    <label className="flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-lg cursor-pointer" style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.muted }}>
-                      <Upload size={11} />
-                      {comprobante ? comprobante.name : 'Adjuntar comprobante (opcional)'}
-                      <input type="file" accept="image/*,.pdf" onChange={(e) => setComprobante(e.target.files?.[0] || null)} className="hidden" />
-                    </label>
-                    <button onClick={() => setMetodoPagoSel(null)} className="text-[11px]" style={{ color: t.muted }}>
-                      Cambiar método
-                    </button>
-                  </div>
                 </div>
               )}
               </>
