@@ -138,6 +138,69 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
     } catch (err) { setError(err.message); }
   };
 
+  // Tarjeta compartida entre la lista de cuentas activas y la de suspendidas.
+  const renderFilaCliente = (c) => (
+    <div key={c.id} className="rounded-2xl p-4" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)', opacity: c.activo === false ? 0.6 : 1 }}>
+      <div className="flex items-center justify-between gap-4 mb-2">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold truncate">
+            {c.email} {c.activo === false && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(236,72,153,0.15)', color: '#EC4899' }}>SUSPENDIDA</span>}
+          </p>
+          <p className="text-[10px]" style={{ color: t.muted }}>
+            {c.nombre || 'Sin nombre'} · cliente desde {new Date(c.creado_en).toLocaleDateString()}
+          </p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-[10px]" style={{ color: t.muted }}>Saldo actual</p>
+          <p className="font-display font-bold text-sm" style={{ color: '#F5A623' }}>{Math.round(Number(c.saldo_creditos)).toLocaleString()} ♦</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2 mt-3">
+        <div className="px-3 py-2 rounded-xl text-center" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
+          <p className="text-[10px]" style={{ color: t.muted }}>Total recargado</p>
+          <p className="text-xs font-bold">${Number(c.total_recargado_usd).toLocaleString()}</p>
+        </div>
+        <div className="px-3 py-2 rounded-xl text-center" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
+          <p className="text-[10px]" style={{ color: t.muted }}>Recargas</p>
+          <p className="text-xs font-bold">{c.cantidad_recargas}</p>
+        </div>
+        <div className="px-3 py-2 rounded-xl text-center" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
+          <p className="text-[10px]" style={{ color: t.muted }}>Créditos consumidos</p>
+          <p className="text-xs font-bold">{Number(c.creditos_consumidos_total).toLocaleString()}</p>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 mt-3 pt-3" style={{ borderTop: `1px solid ${t.inputBorder}` }}>
+        {c.activo === false ? (
+          <button onClick={() => reactivarCliente(c.id)} className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ background: 'rgba(16,185,129,0.15)', color: '#10B981' }}>
+            Reactivar cuenta
+          </button>
+        ) : (
+          <button onClick={() => suspenderCliente(c.id)} className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ background: 'rgba(236,72,153,0.15)', color: '#EC4899' }}>
+            Suspender cuenta
+          </button>
+        )}
+        <input
+          value={ajustesDraft[c.id]?.monto || ''}
+          onChange={(e) => ajustarDraft(c.id, 'monto', e.target.value)}
+          placeholder="± créditos"
+          type="number"
+          className="w-24 text-xs px-2.5 py-1.5 rounded-lg outline-none"
+          style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.text }}
+        />
+        <input
+          value={ajustesDraft[c.id]?.motivo || ''}
+          onChange={(e) => ajustarDraft(c.id, 'motivo', e.target.value)}
+          placeholder="Motivo del ajuste"
+          className="flex-1 min-w-[140px] text-xs px-2.5 py-1.5 rounded-lg outline-none"
+          style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.text }}
+        />
+        <button onClick={() => enviarAjuste(c.id)} className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ background: GRADIENT, color: '#fff' }}>
+          Ajustar
+        </button>
+      </div>
+    </div>
+  );
+
   const aprobarReferido = async (id) => {
     try {
       await api.adminAprobarReferido(id);
@@ -493,69 +556,38 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
             {!cargandoClientes && clientes.length === 0 && (
               <p className="text-sm text-center py-10" style={{ color: t.muted }}>No hay clientes que coincidan.</p>
             )}
-            <div className="space-y-3">
-              {clientes.map((c) => (
-                <div key={c.id} className="rounded-2xl p-4" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)', opacity: c.activo === false ? 0.6 : 1 }}>
-                  <div className="flex items-center justify-between gap-4 mb-2">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold truncate">
-                        {c.email} {c.activo === false && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(236,72,153,0.15)', color: '#EC4899' }}>SUSPENDIDA</span>}
-                      </p>
-                      <p className="text-[10px]" style={{ color: t.muted }}>
-                        {c.nombre || 'Sin nombre'} · cliente desde {new Date(c.creado_en).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-[10px]" style={{ color: t.muted }}>Saldo actual</p>
-                      <p className="font-display font-bold text-sm" style={{ color: '#F5A623' }}>{Math.round(Number(c.saldo_creditos)).toLocaleString()} ♦</p>
-                    </div>
+
+            {!cargandoClientes && clientes.length > 0 && (() => {
+              const activos = clientes.filter((c) => c.activo !== false);
+              const suspendidos = clientes.filter((c) => c.activo === false);
+              return (
+                <>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#10B981' }} />
+                    <h3 className="text-xs font-bold" style={{ color: t.muted }}>Cuentas activas ({activos.length})</h3>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 mt-3">
-                    <div className="px-3 py-2 rounded-xl text-center" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
-                      <p className="text-[10px]" style={{ color: t.muted }}>Total recargado</p>
-                      <p className="text-xs font-bold">${Number(c.total_recargado_usd).toLocaleString()}</p>
-                    </div>
-                    <div className="px-3 py-2 rounded-xl text-center" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
-                      <p className="text-[10px]" style={{ color: t.muted }}>Recargas</p>
-                      <p className="text-xs font-bold">{c.cantidad_recargas}</p>
-                    </div>
-                    <div className="px-3 py-2 rounded-xl text-center" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
-                      <p className="text-[10px]" style={{ color: t.muted }}>Créditos consumidos</p>
-                      <p className="text-xs font-bold">{Number(c.creditos_consumidos_total).toLocaleString()}</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 mt-3 pt-3" style={{ borderTop: `1px solid ${t.inputBorder}` }}>
-                    {c.activo === false ? (
-                      <button onClick={() => reactivarCliente(c.id)} className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ background: 'rgba(16,185,129,0.15)', color: '#10B981' }}>
-                        Reactivar cuenta
-                      </button>
+                  <div className="space-y-3 mb-6">
+                    {activos.length === 0 ? (
+                      <p className="text-xs" style={{ color: t.muted }}>Ninguna cuenta activa coincide con la búsqueda.</p>
                     ) : (
-                      <button onClick={() => suspenderCliente(c.id)} className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ background: 'rgba(236,72,153,0.15)', color: '#EC4899' }}>
-                        Suspender cuenta
-                      </button>
+                      activos.map(renderFilaCliente)
                     )}
-                    <input
-                      value={ajustesDraft[c.id]?.monto || ''}
-                      onChange={(e) => ajustarDraft(c.id, 'monto', e.target.value)}
-                      placeholder="± créditos"
-                      type="number"
-                      className="w-24 text-xs px-2.5 py-1.5 rounded-lg outline-none"
-                      style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.text }}
-                    />
-                    <input
-                      value={ajustesDraft[c.id]?.motivo || ''}
-                      onChange={(e) => ajustarDraft(c.id, 'motivo', e.target.value)}
-                      placeholder="Motivo del ajuste"
-                      className="flex-1 min-w-[140px] text-xs px-2.5 py-1.5 rounded-lg outline-none"
-                      style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.text }}
-                    />
-                    <button onClick={() => enviarAjuste(c.id)} className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ background: GRADIENT, color: '#fff' }}>
-                      Ajustar
-                    </button>
                   </div>
-                </div>
-              ))}
-            </div>
+
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#EC4899' }} />
+                    <h3 className="text-xs font-bold" style={{ color: t.muted }}>Cuentas suspendidas ({suspendidos.length})</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {suspendidos.length === 0 ? (
+                      <p className="text-xs" style={{ color: t.muted }}>No hay cuentas suspendidas.</p>
+                    ) : (
+                      suspendidos.map(renderFilaCliente)
+                    )}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         )}
 
