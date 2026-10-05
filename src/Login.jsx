@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ArrowRight, Zap, TrendingUp, Cpu } from 'lucide-react';
 import { api, setToken } from './api';
+import { trackPixel } from './metaPixel';
 import AnimatedBackground from './AnimatedBackground';
 import { theme, GRADIENT, FONT_IMPORT } from './theme';
 
@@ -49,6 +50,7 @@ export default function Login({ onAuth }) {
         return;
       }
       const data = modo === 'login' ? await api.login(email, password) : await api.registro(email, password, nombre, codigoReferido);
+      if (modo === 'registro') trackPixel('CompleteRegistration');
       setToken(data.token);
       onAuth();
     } catch (err) {
@@ -72,6 +74,7 @@ export default function Login({ onAuth }) {
           setCargando(true);
           try {
             const data = await api.loginGoogle(credential, codigoReferido);
+            if (data.nuevo) trackPixel('CompleteRegistration');
             setToken(data.token);
             onAuth();
           } catch (err) {

@@ -6,6 +6,7 @@ import {
   Home, Package, CreditCard, Activity, User, Menu, X, LogOut, Shield, Cpu, Zap, Flame, Gem, Crown, Trophy, MessageCircle, Info, Gift,
 } from 'lucide-react';
 import { api } from './api';
+import { trackPixel } from './metaPixel';
 import AnimatedBackground from './AnimatedBackground';
 import AnimatedNumber from './AnimatedNumber';
 import AIChat from './AIChat';
@@ -539,6 +540,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
     try {
       const paquete = paquetesRecarga.find((p) => p.id === paqueteSeleccionado);
       await api.recargaManual(paqueteSeleccionado, medio, null);
+      trackPixel('InitiateCheckout', { value: Number(paquete?.precio_usd) || 0, currency: 'USD' });
       celebrar();
       setRecargaConfirmada(paquete || true);
       setPaqueteSeleccionado(null); setMetodoPagoSel(null);
