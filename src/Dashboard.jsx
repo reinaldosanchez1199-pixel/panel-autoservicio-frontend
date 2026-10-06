@@ -28,7 +28,7 @@ const WHATSAPP_NUMERO = import.meta.env.VITE_WHATSAPP_NUMERO || '';
 function enlaceWhatsApp(mensaje) {
   return `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(mensaje)}`;
 }
-// Solo para mostrarlo legible como respaldo (ej. "+1 914-438-1571") — el
+// Solo para mostrarlo legible como respaldo (ej. "+1 832-516-3196") — el
 // enlace real usa WHATSAPP_NUMERO tal cual, sin formatear.
 function formatoNumeroWhatsApp(numero) {
   const m = numero.match(/^1(\d{3})(\d{3})(\d{4})$/);
@@ -45,7 +45,7 @@ function formatoNumeroWhatsApp(numero) {
 // vea todas las opciones que realmente acepta y confíe más al pagar.
 const MEDIOS_PAGO_MANUAL = [
   'Tarjeta', 'Apple Pay', 'Google Pay', 'Amazon Pay', 'Cash App', 'Cuotas',
-  'Zelle', 'PayPal', 'Criptomonedas', 'Banesco Panamá', 'Yappy', 'Bancolombia', 'Nequi',
+  'Zelle', 'PayPal', 'Binance', 'Criptomonedas', 'Banesco Panamá', 'Yappy', 'Bancolombia', 'Nequi',
 ];
 
 // Explica en corto y en humano qué hace cada tipo de servicio — para el cliente
