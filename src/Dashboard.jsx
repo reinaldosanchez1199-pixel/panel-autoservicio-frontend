@@ -59,7 +59,7 @@ const COMISION_PAYPAL_PCT = 6;
 
 function mensajeRecarga(paquete, medio, datos) {
   const creditos = Number(paquete?.creditos_otorgados || 0).toLocaleString();
-  const base = `Hola, voy a pagar $${paquete?.precio_usd} USD a través de ${medio} para recargar ${creditos} Viral Credits en Viralizame.com.`;
+  const base = `Hola, voy a pagar $${Number(paquete?.precio_usd)} USD a través de ${medio} para recargar ${creditos} Viral Credits en Viralizame.com.`;
   if (MEDIOS_CON_LINK.includes(medio)) return `${base} ¿Me envían el link de pago?`;
   if (!datos) return `${base} ¿Me confirman los datos para completar el pago?`;
   let aviso = '';
@@ -67,7 +67,7 @@ function mensajeRecarga(paquete, medio, datos) {
     const total = (Number(paquete?.precio_usd || 0) * (1 + COMISION_PAYPAL_PCT / 100)).toFixed(2);
     aviso = `
 
-⚠️ Con la comisión de PayPal (${COMISION_PAYPAL_PCT}%), el total a pagar es $${total} USD (ya incluye la comisión).`;
+IMPORTANTE: con la comisión de PayPal (${COMISION_PAYPAL_PCT}%), el total a pagar es $${total} USD (ya incluye la comisión).`;
   }
   return `${base}
 
@@ -367,7 +367,8 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
 
   useEffect(() => { cargarTodo(); }, [cargarTodo]);
   // Aparte de cargarTodo: si falla, la recarga sigue funcionando con el mensaje genérico.
-  useEffect(() => { api.datosPago().then(setDatosPago).catch(() => {}); }, []);
+  // Se vuelve a pedir al elegir un paquete para no usar datos viejos si se cambiaron.
+  useEffect(() => { api.datosPago().then(setDatosPago).catch(() => {}); }, [paqueteSeleccionado]);
 
   // Tour de bienvenida: solo para clientes nuevos de verdad (sin ningún
   // movimiento real todavía) y que no lo hayan cerrado antes.
