@@ -48,6 +48,21 @@ const MEDIOS_PAGO_MANUAL = [
   'Zelle', 'PayPal', 'Binance', 'Criptomonedas', 'Banesco Panamá', 'Yappy', 'Bancolombia', 'Nequi',
 ];
 
+// Mensaje de WhatsApp al elegir un método de pago. Si hay datos de cobro para ese
+// método, van dentro del mismo mensaje — el cliente paga sin esperar respuesta y
+// solo falta que mande la captura. Sin datos (Tarjeta, etc.) se piden por chat.
+function mensajeRecarga(paquete, medio, datos) {
+  const creditos = Number(paquete?.creditos_otorgados || 0).toLocaleString();
+  const base = `Hola, voy a pagar ${paquete?.precio_usd} USD a través de ${medio} para recargar ${creditos} Viral Credits en Viralizame.`;
+  if (!datos) return `${base} ¿Me confirman los datos para completar el pago?`;
+  return `${base}
+
+Utilizaré estos datos para el envío:
+${datos}
+
+Una vez realizado el pago, les envío la captura para que lo verifiquen y me acrediten los Viral Credits.`;
+}
+
 // Explica en corto y en humano qué hace cada tipo de servicio — para el cliente
 // nuevo que nunca ha usado un panel y no sabe qué significa "Alcance + Impresiones".
 const DESCRIPCIONES_TIPO = {
@@ -316,6 +331,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
   const [historial, setHistorial] = useState([]);
   const [paquetesRecarga, setPaquetesRecarga] = useState([]);
   const [niveles, setNiveles] = useState([]);
+  const [datosPago, setDatosPago] = useState({}); // { Zelle: '…', … } — viene del backend, solo con sesión
   const [paqueteSeleccionado, setPaqueteSeleccionado] = useState(null);
   const [metodoPagoSel, setMetodoPagoSel] = useState(null);
   const [recargaConfirmada, setRecargaConfirmada] = useState(null);
@@ -336,6 +352,8 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
   }, []);
 
   useEffect(() => { cargarTodo(); }, [cargarTodo]);
+  // Aparte de cargarTodo: si falla, la recarga sigue funcionando con el mensaje genérico.
+  useEffect(() => { api.datosPago().then(setDatosPago).catch(() => {}); }, []);
 
   // Tour de bienvenida: solo para clientes nuevos de verdad (sin ningún
   // movimiento real todavía) y que no lo hayan cerrado antes.
@@ -788,7 +806,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                       return (
                         <a
                           key={medio}
-                          href={WHATSAPP_NUMERO ? enlaceWhatsApp(`Hola, quiero recargar ${Number(paquete?.creditos_otorgados || 0).toLocaleString()} Viral Credits ($${paquete?.precio_usd} USD) en Viralizame pagando con ${medio}. ¿Me confirman los datos para completar el pago?`) : undefined}
+                          href={WHATSAPP_NUMERO ? enlaceWhatsApp(mensajeRecarga(paquete, medio, datosPago[medio])) : undefined}
                           target="_blank" rel="noopener noreferrer"
                           onClick={() => seleccionarMetodoPago(medio)}
                           className="text-xs font-medium px-3 py-1.5 rounded-full cursor-pointer"
