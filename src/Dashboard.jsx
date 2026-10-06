@@ -45,22 +45,32 @@ function formatoNumeroWhatsApp(numero) {
 // vea todas las opciones que realmente acepta y confíe más al pagar.
 const MEDIOS_PAGO_MANUAL = [
   'Tarjeta', 'Apple Pay', 'Google Pay', 'Amazon Pay', 'Cash App', 'Cuotas',
-  'Zelle', 'PayPal', 'Binance', 'Criptomonedas', 'Banesco Panamá', 'Yappy', 'Bancolombia', 'Nequi',
+  'Zelle', 'PayPal', 'Binance', 'Criptomonedas', 'Banesco Panamá', 'Towerbank', 'Yappy', 'Bancolombia', 'Nequi',
 ];
 
 // Mensaje de WhatsApp al elegir un método de pago. Si hay datos de cobro para ese
 // método, van dentro del mismo mensaje — el cliente paga sin esperar respuesta y
 // solo falta que mande la captura. Sin datos (Tarjeta, etc.) se piden por chat.
+// PayPal cobra comisión al que envía; el cliente debe sumarla al monto.
+const COMISION_PAYPAL_PCT = 5.5;
+
 function mensajeRecarga(paquete, medio, datos) {
   const creditos = Number(paquete?.creditos_otorgados || 0).toLocaleString();
-  const base = `Hola, voy a pagar ${paquete?.precio_usd} USD a través de ${medio} para recargar ${creditos} Viral Credits en Viralizame.`;
+  const base = `Hola, voy a pagar $${paquete?.precio_usd} USD a través de ${medio} para recargar ${creditos} Viral Credits en Viralizame.com.`;
   if (!datos) return `${base} ¿Me confirman los datos para completar el pago?`;
+  let aviso = '';
+  if (medio === 'PayPal') {
+    const total = (Number(paquete?.precio_usd || 0) * (1 + COMISION_PAYPAL_PCT / 100)).toFixed(2);
+    aviso = `
+
+⚠️ Con la comisión de PayPal (${COMISION_PAYPAL_PCT}%), el total a enviar es $${total} USD.`;
+  }
   return `${base}
 
 Utilizaré estos datos para el envío:
-${datos}
+${datos}${aviso}
 
-Una vez realizado el pago, les envío la captura para que lo verifiquen y me acrediten los Viral Credits.`;
+Una vez realizado el pago, les envío el comprobante por este chat para que lo verifiquen y me acrediten los Viral Credits.`;
 }
 
 // Explica en corto y en humano qué hace cada tipo de servicio — para el cliente
