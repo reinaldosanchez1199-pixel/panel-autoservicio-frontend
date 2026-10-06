@@ -67,7 +67,7 @@ function mensajeRecarga(paquete, medio, datos) {
     const total = (Number(paquete?.precio_usd || 0) * (1 + COMISION_PAYPAL_PCT / 100)).toFixed(2);
     aviso = `
 
-⚠️ Con la comisión de PayPal (${COMISION_PAYPAL_PCT}%), el total a pagar es ${total} USD (ya incluye la comisión).`;
+⚠️ Con la comisión de PayPal (${COMISION_PAYPAL_PCT}%), el total a pagar es $${total} USD (ya incluye la comisión).`;
   }
   return `${base}
 
