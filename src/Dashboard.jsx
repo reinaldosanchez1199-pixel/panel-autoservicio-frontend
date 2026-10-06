@@ -51,19 +51,23 @@ const MEDIOS_PAGO_MANUAL = [
 // Mensaje de WhatsApp al elegir un método de pago. Si hay datos de cobro para ese
 // método, van dentro del mismo mensaje — el cliente paga sin esperar respuesta y
 // solo falta que mande la captura. Sin datos (Tarjeta, etc.) se piden por chat.
+// Medios que se cobran con link de pago (Stripe): el admin lo manda por chat.
+const MEDIOS_CON_LINK = ['Tarjeta', 'Apple Pay', 'Google Pay', 'Amazon Pay', 'Cash App', 'Cuotas'];
+
 // PayPal cobra comisión al que envía; el cliente debe sumarla al monto.
-const COMISION_PAYPAL_PCT = 5.5;
+const COMISION_PAYPAL_PCT = 6;
 
 function mensajeRecarga(paquete, medio, datos) {
   const creditos = Number(paquete?.creditos_otorgados || 0).toLocaleString();
   const base = `Hola, voy a pagar $${paquete?.precio_usd} USD a través de ${medio} para recargar ${creditos} Viral Credits en Viralizame.com.`;
+  if (MEDIOS_CON_LINK.includes(medio)) return `${base} ¿Me envían el link de pago?`;
   if (!datos) return `${base} ¿Me confirman los datos para completar el pago?`;
   let aviso = '';
   if (medio === 'PayPal') {
     const total = (Number(paquete?.precio_usd || 0) * (1 + COMISION_PAYPAL_PCT / 100)).toFixed(2);
     aviso = `
 
-⚠️ Con la comisión de PayPal (${COMISION_PAYPAL_PCT}%), el total a enviar es $${total} USD.`;
+⚠️ Con la comisión de PayPal (${COMISION_PAYPAL_PCT}%), el total a pagar es ${total} USD (ya incluye la comisión).`;
   }
   return `${base}
 
