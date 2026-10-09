@@ -45,7 +45,7 @@ function formatoNumeroWhatsApp(numero) {
 // vea todas las opciones que realmente acepta y confíe más al pagar.
 const MEDIOS_PAGO_MANUAL = [
   'Tarjeta', 'Apple Pay', 'Google Pay', 'Amazon Pay', 'Cash App', 'Cuotas',
-  'Zelle', 'PayPal', 'Binance', 'Criptomonedas', 'Banesco Panamá', 'Towerbank', 'Yappy', 'Bancolombia', 'Nequi',
+  'Zelle', 'PayPal', 'Binance', 'Criptomonedas', 'Banesco Panamá', 'Towerbank', 'Yappy', 'Bancolombia', 'Nequi', 'BancoEstado',
 ];
 
 // Mensaje de WhatsApp al elegir un método de pago. Si hay datos de cobro para ese
@@ -57,9 +57,26 @@ const MEDIOS_CON_LINK = ['Tarjeta', 'Apple Pay', 'Google Pay', 'Amazon Pay', 'Ca
 // PayPal cobra comisión al que envía; el cliente debe sumarla al monto.
 const COMISION_PAYPAL_PCT = 6;
 
-function mensajeRecarga(paquete, medio, datos) {
+// Moneda local en la que se paga cada método local, y país -> moneda para mostrar
+// el equivalente en los paquetes. La tasa viene del backend (TASAS_MONEDA).
+const MONEDA_POR_MEDIO = { Bancolombia: 'COP', Nequi: 'COP', BancoEstado: 'CLP' };
+const MONEDA_POR_PAIS = { CO: 'COP', CL: 'CLP' };
+const LOCALE_MONEDA = { COP: 'es-CO', CLP: 'es-CL' };
+const REDONDEO_MONEDA = { COP: 100, CLP: 10 };
+
+function montoLocal(usd, moneda, tasas) {
+  const tasa = Number(tasas?.[moneda]);
+  if (!moneda || !tasa || !Number(usd)) return null;
+  const paso = REDONDEO_MONEDA[moneda] || 1;
+  const valor = Math.round((Number(usd) * tasa) / paso) * paso;
+  return `$${valor.toLocaleString(LOCALE_MONEDA[moneda])} ${moneda}`;
+}
+
+function mensajeRecarga(paquete, medio, datos, tasas) {
   const creditos = Number(paquete?.creditos_otorgados || 0).toLocaleString();
-  const base = `Hola, voy a pagar $${Number(paquete?.precio_usd)} USD a través de ${medio} para recargar ${creditos} Viral Credits en Viralizame.com.`;
+  const local = montoLocal(paquete?.precio_usd, MONEDA_POR_MEDIO[medio], tasas);
+  const monto = local ? `$${Number(paquete?.precio_usd)} USD (${local})` : `$${Number(paquete?.precio_usd)} USD`;
+  const base = `Hola, voy a pagar ${monto} a través de ${medio} para recargar ${creditos} Viral Credits en Viralizame.com.`;
   if (MEDIOS_CON_LINK.includes(medio)) return `${base} ¿Me envían el link de pago?`;
   if (!datos) return `${base} ¿Me confirman los datos para completar el pago?`;
   let aviso = '';
@@ -345,6 +362,8 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
   const [historial, setHistorial] = useState([]);
   const [paquetesRecarga, setPaquetesRecarga] = useState([]);
   const [niveles, setNiveles] = useState([]);
+  const [tasas, setTasas] = useState({}); // { COP: 3300, CLP: 1000 }
+  const [monedaLocal, setMonedaLocal] = useState(null); // 'COP' | 'CLP' según el país del visitante
   const [datosPago, setDatosPago] = useState({}); // { Zelle: '…', … } — viene del backend, solo con sesión
   const [paqueteSeleccionado, setPaqueteSeleccionado] = useState(null);
   const [metodoPagoSel, setMetodoPagoSel] = useState(null);
@@ -367,6 +386,12 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
 
   useEffect(() => { cargarTodo(); }, [cargarTodo]);
   // Aparte de cargarTodo: si falla, la recarga sigue funcionando con el mensaje genérico.
+  // País del visitante: la función /api/geo de Vercel lo lee de su IP. Si falla
+  // (o en desarrollo local) simplemente no se muestra equivalente en moneda local.
+  useEffect(() => {
+    api.tasasMoneda().then(setTasas).catch(() => {});
+    fetch('/api/geo').then((r) => r.json()).then((g) => setMonedaLocal(MONEDA_POR_PAIS[g?.pais] || null)).catch(() => {});
+  }, []);
   // Se vuelve a pedir al elegir un paquete para no usar datos viejos si se cambiaron.
   useEffect(() => { api.datosPago().then(setDatosPago).catch(() => {}); }, [paqueteSeleccionado]);
 
@@ -807,6 +832,9 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                       )}
                       <Icono size={14} style={{ color: esMejorValor ? '#F5A623' : '#C4B5FD' }} className="mb-1.5" />
                       <p className="text-xs" style={{ color: t.muted }}>${p.precio_usd} USD</p>
+                      {monedaLocal && montoLocal(p.precio_usd, monedaLocal, tasas) && (
+                        <p className="text-[10px]" style={{ color: t.muted }}>≈ {montoLocal(p.precio_usd, monedaLocal, tasas)}</p>
+                      )}
                       <p className="font-display font-bold text-sm">{Number(p.creditos_otorgados).toLocaleString()} ♦</p>
                     </motion.button>
                   );
@@ -816,12 +844,12 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
                 <div>
                   <p className="text-xs font-semibold mb-2" style={{ color: t.muted }}>¿Cómo vas a pagar?</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {MEDIOS_PAGO_MANUAL.map((medio) => {
+                    {[...MEDIOS_PAGO_MANUAL].sort((a, b) => (MONEDA_POR_MEDIO[b] === monedaLocal && monedaLocal ? 1 : 0) - (MONEDA_POR_MEDIO[a] === monedaLocal && monedaLocal ? 1 : 0)).map((medio) => {
                       const paquete = paquetesRecarga.find((p) => p.id === paqueteSeleccionado);
                       return (
                         <a
                           key={medio}
-                          href={WHATSAPP_NUMERO ? enlaceWhatsApp(mensajeRecarga(paquete, medio, datosPago[medio])) : undefined}
+                          href={WHATSAPP_NUMERO ? enlaceWhatsApp(mensajeRecarga(paquete, medio, datosPago[medio], tasas)) : undefined}
                           target="_blank" rel="noopener noreferrer"
                           onClick={() => seleccionarMetodoPago(medio)}
                           className="text-xs font-medium px-3 py-1.5 rounded-full cursor-pointer"

@@ -103,6 +103,7 @@ export const api = {
   bundles: () => request('/api/bundles'),
   paquetesRecarga: () => request('/api/paquetes-recarga'),
   datosPago: () => request('/api/datos-pago'),
+  tasasMoneda: () => request('/api/tasas-moneda'),
   niveles: () => request('/api/niveles'),
   perfiles: () => request('/api/perfiles'),
   crearPerfil: (plataforma, nombreUsuario, url) => request('/api/perfiles', { method: 'POST', body: { plataforma, nombreUsuario, url } }),
