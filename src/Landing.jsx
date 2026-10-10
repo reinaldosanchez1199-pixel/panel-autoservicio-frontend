@@ -7,6 +7,7 @@ import {
 import AnimatedBackground from './AnimatedBackground';
 import AIChat from './AIChat';
 import { theme, GRADIENT, GRADIENT_SOFT, FONT_IMPORT } from './theme';
+import { trackPixel } from './metaPixel';
 
 const ESTADISTICAS = [
   { valor: '2.8M+', label: 'Impulsos entregados' },
@@ -127,6 +128,54 @@ function FaqItem({ item, abierto, onClick }) {
   );
 }
 
+// Video tutorial de ~45 s (vertical). Sin autoplay y con preload="none": no
+// descarga nada hasta que el visitante toca reproducir, así no pesa en la carga
+// ni en datos móviles. El tamaño se limita para que no ocupe toda la pantalla.
+function VideoComoFunciona({ onEntrar, t }) {
+  const [reproduciendo, setReproduciendo] = useState(false);
+  const iniciar = () => {
+    setReproduciendo(true);
+    trackPixel('ViewContent', { content_name: 'video_como_funciona' });
+  };
+  return (
+    <section className="max-w-4xl mx-auto px-6 mb-20">
+      <div className="rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-6 sm:gap-10" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)' }}>
+        <div className="sm:order-2 text-center sm:text-left sm:flex-1">
+          <p className="text-xs uppercase tracking-widest mb-2" style={{ color: t.muted }}>Míralo en acción</p>
+          <h2 className="font-display text-2xl sm:text-3xl font-bold mb-3">Mira cómo usar Viralizame en 45 segundos</h2>
+          <p className="text-sm mb-5" style={{ color: t.muted }}>
+            Recargas tu saldo, eliges el servicio, pegas el enlace e impulsas. Así de fácil — sin escribirle a nadie.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center gap-3 justify-center sm:justify-start">
+            <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }} onClick={onEntrar} className="flex items-center gap-2 px-6 py-3 rounded-full font-display font-bold text-sm" style={{ background: GRADIENT, color: '#fff', boxShadow: '0 8px 30px rgba(124,58,237,0.35)' }}>
+              Crear mi cuenta <ArrowRight size={16} />
+            </motion.button>
+            <button onClick={onEntrar} className="px-5 py-3 rounded-full font-semibold text-sm" style={{ color: t.muted, border: `1px solid ${t.border}` }}>
+              Iniciar sesión
+            </button>
+          </div>
+        </div>
+        <div className="sm:order-1 w-full max-w-[240px] shrink-0">
+          <div className="relative rounded-2xl overflow-hidden" style={{ aspectRatio: '9 / 16', background: '#000', border: `1px solid ${t.border}` }}>
+            {reproduciendo ? (
+              <video src="/como-funciona.mp4" poster="/como-funciona-poster.jpg" controls autoPlay playsInline preload="auto" className="w-full h-full object-cover" />
+            ) : (
+              <button onClick={iniciar} aria-label="Reproducir video: cómo usar Viralizame" className="absolute inset-0 w-full h-full">
+                <img src="/como-funciona-poster.jpg" alt="" loading="lazy" className="w-full h-full object-cover" />
+                <span className="absolute inset-0 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.25)' }}>
+                  <span className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: GRADIENT, boxShadow: '0 8px 30px rgba(124,58,237,0.5)' }}>
+                    <Play size={26} color="#fff" fill="#fff" />
+                  </span>
+                </span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function Landing({ onEntrar }) {
   const [faqAbierto, setFaqAbierto] = useState(0);
   const t = theme.dark;
@@ -189,6 +238,8 @@ export default function Landing({ onEntrar }) {
             </motion.div>
           ))}
         </section>
+
+        <VideoComoFunciona onEntrar={onEntrar} t={t} />
 
         {/* Cómo funciona */}
         <section className="max-w-5xl mx-auto px-6 mb-20">
