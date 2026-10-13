@@ -23,9 +23,10 @@ function celebrar() {
   confetti({ particleCount: 90, spread: 75, origin: { y: 0.7 }, colors: ['#7C3AED', '#EC4899', '#06B6D4', '#F5C542'] });
 }
 
-// Número de WhatsApp Business, en formato E.164 sin "+" (ej. "18091234567").
-// Se define por entorno para no tocar código si cambia el número.
-const WHATSAPP_NUMERO = import.meta.env.VITE_WHATSAPP_NUMERO || '';
+// Número de WhatsApp de soporte, contacto y envío de enlaces de pago (+1 832 516 3196),
+// en formato E.164 sin "+". Fijo en el código a propósito: así no depende de la
+// variable VITE_WHATSAPP_NUMERO de Vercel, que podía quedarse con el número viejo.
+const WHATSAPP_NUMERO = '18325163196';
 function enlaceWhatsApp(mensaje) {
   return `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(mensaje)}`;
 }
