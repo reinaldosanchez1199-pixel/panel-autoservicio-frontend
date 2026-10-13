@@ -221,9 +221,22 @@ export default function Recargar({ paquetes, t, whatsappNumero, email, onCerrar,
 
   const enlaceSoporte = (r) => {
     if (!whatsappNumero) return null;
-    const texto = r
-      ? `Hola, necesito ayuda con mi recarga en Viralizame.com.\nSolicitud: ${codigoCorto(r.id)}\nMétodo: ${r.metodo}\nCorreo: ${email || '—'}`
-      : `Hola, necesito ayuda con una recarga en Viralizame.com.\nCorreo: ${email || '—'}`;
+    let texto;
+    if (r) {
+      // Monto en USD de la recarga (sin comisión de PayPal): con eso se sabe qué
+      // enlace de pago enviar. El correo identifica al cliente; no hace falta el ID.
+      const monto = `${fmtUsd(r.monto_declarado)} (${fmtNum(r.creditos_a_acreditar)} Viral Credits)`;
+      const intro = METODOS_ENLACE.includes(r.metodo)
+        ? `Hola, quiero pagar mi recarga en Viralizame.com con ${r.metodo}. ¿Me envían el enlace de pago?`
+        : 'Hola, necesito ayuda con mi recarga en Viralizame.com.';
+      texto = `${intro}
+Monto a recargar: ${monto}
+Método: ${r.metodo}
+Correo: ${email || '—'}`;
+    } else {
+      texto = `Hola, necesito ayuda con una recarga en Viralizame.com.
+Correo: ${email || '—'}`;
+    }
     return `https://wa.me/${whatsappNumero}?text=${encodeURIComponent(texto)}`;
   };
 
