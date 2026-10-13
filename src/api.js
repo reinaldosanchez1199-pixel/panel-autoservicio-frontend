@@ -124,7 +124,40 @@ export const api = {
     return request('/api/recargas/manual', { method: 'POST', body: form, isForm: true });
   },
 
+  // Recargas v2 — instrucciones de pago y comprobante dentro de la plataforma
+  recargaIniciar: (paqueteId, metodo) => request('/api/recargas/iniciar', { method: 'POST', body: { paqueteId, metodo } }),
+  misRecargas: () => request('/api/recargas'),
+  recargaEnviar: (id) => request(`/api/recargas/${id}/enviar`, { method: 'POST' }),
+  // XMLHttpRequest (no fetch) para poder mostrar el progreso real de la subida.
+  recargaSubirComprobante: (id, archivo, onProgreso) => new Promise((resolve, reject) => {
+    const form = new FormData();
+    form.append('comprobante', archivo);
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${BASE_URL}/api/recargas/${id}/comprobante`);
+    const token = getToken();
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable && onProgreso) onProgreso(Math.round((e.loaded / e.total) * 100)); };
+    xhr.onerror = () => reject(new Error('No se pudo subir el archivo. Revisa tu conexión e intenta de nuevo.'));
+    xhr.onload = () => {
+      let data = null;
+      try { data = JSON.parse(xhr.responseText); } catch {}
+      if (xhr.status >= 200 && xhr.status < 300) resolve(data);
+      else reject(new Error(data?.error || `Error ${xhr.status}`));
+    };
+    xhr.send(form);
+  }),
+  // Descarga el comprobante con la sesión (el endpoint es privado) y devuelve un Blob.
+  comprobanteBlob: async (id) => {
+    const resp = await fetch(`${BASE_URL}/api/recargas/${id}/comprobante`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (!resp.ok) throw new Error('No se pudo abrir el comprobante');
+    return resp.blob();
+  },
+
   // Admin
+  adminRecargasLista: (estado) => request(`/api/admin/recargas/lista?estado=${encodeURIComponent(estado)}`),
+  adminRecargasConteos: () => request('/api/admin/recargas/conteos'),
+  adminAprobarRecargaV2: (id) => request(`/api/admin/recargas/${id}/aprobar-v2`, { method: 'POST' }),
+  adminRechazarRecargaV2: (id, motivo) => request(`/api/admin/recargas/${id}/rechazar-v2`, { method: 'POST', body: { motivo } }),
   adminRecargasPendientes: () => request('/api/admin/recargas'),
   adminAprobarRecarga: (id) => request(`/api/admin/recargas/${id}/aprobar`, { method: 'POST' }),
   adminRechazarRecarga: (id) => request(`/api/admin/recargas/${id}/rechazar`, { method: 'POST' }),

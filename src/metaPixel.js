@@ -36,3 +36,34 @@ export function trackPixel(evento, datos) {
     // ignorar
   }
 }
+
+// Eventos propios del flujo de recarga (recharge_started, payment_method_selected, ...).
+// Van como eventos personalizados de Meta y NUNCA llevan datos bancarios, correo,
+// comprobantes ni nada sensible: solo el nombre del método y, en los de pago, el
+// monto y la moneda. `clave` evita duplicados (un mismo evento por solicitud).
+const enviados = new Set();
+export function trackEvento(nombre, datos, clave) {
+  try {
+    const k = clave ? `${nombre}:${clave}` : null;
+    if (k && enviados.has(k)) return;
+    if (k) enviados.add(k);
+    if (PIXEL_ID && typeof window !== 'undefined' && window.fbq) window.fbq('trackCustom', nombre, datos);
+  } catch {
+    // ignorar
+  }
+}
+
+// Eventos que deben reportarse UNA sola vez aunque el usuario recargue la página
+// (ej. recharge_approved / Purchase al ver una recarga ya confirmada).
+export function trackUnaVez(clave, fn) {
+  try {
+    const KEY = 'viralizame_eventos_reportados';
+    const lista = JSON.parse(localStorage.getItem(KEY) || '[]');
+    if (lista.includes(clave)) return;
+    fn();
+    lista.push(clave);
+    localStorage.setItem(KEY, JSON.stringify(lista.slice(-200)));
+  } catch {
+    // ignorar
+  }
+}

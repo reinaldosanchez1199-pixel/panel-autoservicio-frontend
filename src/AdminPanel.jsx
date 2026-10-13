@@ -16,6 +16,10 @@ const ESTADO_INFO = {
 export default function AdminPanel({ onVolver, onCerrarSesion }) {
   const [tab, setTab] = useState('recargas');
   const [recargas, setRecargas] = useState([]);
+  const [filtroRecargas, setFiltroRecargas] = useState('abiertas');
+  const [conteosRecargas, setConteosRecargas] = useState({});
+  const [rechazando, setRechazando] = useState(null); // id de la recarga con el formulario de motivo abierto
+  const [motivoRechazo, setMotivoRechazo] = useState('');
   const [pendientes, setPendientes] = useState([]);
   const [ordenesAdmin, setOrdenesAdmin] = useState([]);
   const [cargandoOrdenes, setCargandoOrdenes] = useState(false);
@@ -34,15 +38,16 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
 
   const cargar = useCallback(async () => {
     try {
-      const [r, p] = await Promise.all([api.adminRecargasPendientes(), api.adminServiciosPendientes()]);
+      const [r, c, p] = await Promise.all([api.adminRecargasLista(filtroRecargas), api.adminRecargasConteos(), api.adminServiciosPendientes()]);
       setRecargas(r);
+      setConteosRecargas(c);
       setPendientes(p);
     } catch (err) {
       setError(err.message);
     } finally {
       setCargando(false);
     }
-  }, []);
+  }, [filtroRecargas]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -217,15 +222,24 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
 
   const aprobar = async (id) => {
     try {
-      await api.adminAprobarRecarga(id);
-      setRecargas((r) => r.filter((x) => x.id !== id));
+      await api.adminAprobarRecargaV2(id);
+      cargar();
     } catch (err) { setError(err.message); }
   };
 
-  const rechazar = async (id) => {
+  const confirmarRechazo = async (id) => {
+    if (!motivoRechazo.trim()) { setError('Escribe el motivo del rechazo: el cliente lo verá.'); return; }
     try {
-      await api.adminRechazarRecarga(id);
-      setRecargas((r) => r.filter((x) => x.id !== id));
+      await api.adminRechazarRecargaV2(id, motivoRechazo.trim());
+      setRechazando(null); setMotivoRechazo('');
+      cargar();
+    } catch (err) { setError(err.message); }
+  };
+
+  const verComprobante = async (id) => {
+    try {
+      const blob = await api.comprobanteBlob(id);
+      window.open(URL.createObjectURL(blob), '_blank', 'noopener');
     } catch (err) { setError(err.message); }
   };
 
@@ -289,7 +303,7 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold"
             style={{ background: tab === 'recargas' ? GRADIENT : t.surface, color: tab === 'recargas' ? '#fff' : t.muted, border: `1px solid ${t.border}` }}
           >
-            <Wallet size={15} /> Recargas ({recargas.length})
+            <Wallet size={15} /> Recargas ({conteosRecargas.abiertas ?? recargas.length})
           </button>
           <button
             onClick={() => setTab('servicios')}
@@ -332,39 +346,92 @@ export default function AdminPanel({ onVolver, onCerrarSesion }) {
 
         {!cargando && tab === 'recargas' && (
           <div className="space-y-3">
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                ['abiertas', 'Abiertas'],
+                ['en_verificacion', 'En verificación'],
+                ['pendiente_pago', 'Pendiente de pago'],
+                ['aprobado', 'Aprobadas'],
+                ['rechazado', 'Rechazadas'],
+              ].map(([id, label]) => (
+                <button key={id} onClick={() => setFiltroRecargas(id)}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-full"
+                  style={{ background: filtroRecargas === id ? GRADIENT : t.surface, color: filtroRecargas === id ? '#fff' : t.muted, border: `1px solid ${t.border}` }}>
+                  {label}{conteosRecargas[id] !== undefined ? ` (${conteosRecargas[id]})` : ''}
+                </button>
+              ))}
+            </div>
             {recargas.length === 0 && (
-              <p className="text-sm text-center py-10" style={{ color: t.muted }}>No hay recargas pendientes.</p>
+              <p className="text-sm text-center py-10" style={{ color: t.muted }}>No hay recargas en esta vista.</p>
             )}
-            {recargas.map((r) => (
-              <motion.div key={r.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl p-4 flex items-center justify-between gap-4" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)' }}>
-                <div className="flex items-center gap-3 min-w-0">
-                  {r.comprobante_url ? (
-                    <a href={r.comprobante_url} target="_blank" rel="noreferrer" className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
-                      <ImageIcon size={16} style={{ color: t.muted }} />
-                    </a>
-                  ) : (
-                    <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }} title="Sin archivo adjunto — revisa el comprobante en WhatsApp">
-                      <ImageIcon size={16} style={{ color: t.muted, opacity: 0.4 }} />
+            {recargas.map((r) => {
+              const abierta = ['pendiente', 'pendiente_pago', 'en_verificacion'].includes(r.estado);
+              const info = {
+                pendiente: ['Pendiente de pago', '#F5A623'], pendiente_pago: ['Pendiente de pago', '#F5A623'],
+                en_verificacion: ['En verificación', '#A78BFA'], aprobado: ['Aprobada', '#10B981'], rechazado: ['Rechazada', '#EC4899'],
+              }[r.estado] || [r.estado, t.muted];
+              const aPagar = Number(r.monto_a_pagar);
+              return (
+                <motion.div key={r.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl p-4" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)' }}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold truncate">{r.email}</p>
+                      <p className="text-xs" style={{ color: t.muted }}>
+                        ${Number(r.monto_declarado).toFixed(2)}{aPagar > Number(r.monto_declarado) ? ` (a pagar ${'$'}${aPagar.toFixed(2)})` : ''}{r.metodo ? ` · ${r.metodo}` : ''}
+                      </p>
+                      <p className="text-[11px]" style={{ color: t.muted }}>
+                        Creada {new Date(r.creado_en).toLocaleString()}{r.enviado_en ? ` · Enviada ${new Date(r.enviado_en).toLocaleString()}` : ''}
+                      </p>
+                      <p className="text-[10px] font-mono mt-0.5" style={{ color: t.muted }}>ID {r.id}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="font-display font-bold text-sm" style={{ color: '#F5A623' }}>+{Math.round(Number(r.creditos_a_acreditar)).toLocaleString()} ♦</span>
+                      <p className="text-[10px] font-bold mt-1" style={{ color: info[1] }}>{info[0]}</p>
+                    </div>
+                  </div>
+
+                  {r.estado === 'rechazado' && r.motivo_rechazo && (
+                    <p className="text-xs mt-2" style={{ color: '#F9A8D4' }}>Motivo: {r.motivo_rechazo}</p>
+                  )}
+                  {r.revisado_en && (
+                    <p className="text-[11px] mt-1" style={{ color: t.muted }}>
+                      Revisada {new Date(r.revisado_en).toLocaleString()}{r.revisado_por_email ? ` por ${r.revisado_por_email}` : ''}
+                    </p>
+                  )}
+
+                  <div className="flex flex-wrap items-center gap-2 mt-3">
+                    {r.tiene_comprobante ? (
+                      <button onClick={() => verComprobante(r.id)} className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg" style={{ background: t.input, border: `1px solid ${t.inputBorder}` }}>
+                        <ImageIcon size={13} /> Ver comprobante
+                      </button>
+                    ) : (
+                      <span className="text-[11px]" style={{ color: t.muted }}>Sin comprobante en la plataforma</span>
+                    )}
+                    {abierta && (
+                      <>
+                        <button onClick={() => aprobar(r.id)} className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg" style={{ background: 'rgba(16,185,129,0.15)', color: '#10B981' }}>
+                          <Check size={14} /> Aprobar
+                        </button>
+                        <button onClick={() => { setRechazando(rechazando === r.id ? null : r.id); setMotivoRechazo(''); }} className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg" style={{ background: 'rgba(236,72,153,0.15)', color: '#EC4899' }}>
+                          <X size={14} /> Rechazar
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {abierta && rechazando === r.id && (
+                    <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                      <input value={motivoRechazo} onChange={(e) => setMotivoRechazo(e.target.value)} maxLength={500}
+                        placeholder="Motivo del rechazo (el cliente lo verá)"
+                        className="flex-1 text-xs px-3 py-2 rounded-lg outline-none" style={{ background: t.input, border: `1px solid ${t.inputBorder}`, color: t.text }} />
+                      <button onClick={() => confirmarRechazo(r.id)} className="text-xs font-bold px-4 py-2 rounded-lg" style={{ background: '#EC4899', color: '#fff' }}>
+                        Confirmar rechazo
+                      </button>
                     </div>
                   )}
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold truncate">{r.email}</p>
-                    <p className="text-xs" style={{ color: t.muted }}>
-                      ${r.monto_declarado}{r.metodo ? ` · ${r.metodo}` : ''} · {new Date(r.creado_en).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="font-display font-bold text-sm" style={{ color: '#F5A623' }}>+{Math.round(Number(r.creditos_a_acreditar)).toLocaleString()} ♦</span>
-                  <button onClick={() => aprobar(r.id)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.15)' }}>
-                    <Check size={15} style={{ color: '#10B981' }} />
-                  </button>
-                  <button onClick={() => rechazar(r.id)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(236,72,153,0.15)' }}>
-                    <X size={15} style={{ color: '#EC4899' }} />
-                  </button>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </div>
         )}
 

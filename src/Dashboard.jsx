@@ -6,7 +6,8 @@ import {
   Home, Package, CreditCard, Activity, User, Menu, X, LogOut, Shield, Cpu, Zap, Flame, Gem, Crown, Trophy, MessageCircle, Info, Gift,
 } from 'lucide-react';
 import { api } from './api';
-import { trackPixel } from './metaPixel';
+import { trackPixel, trackEvento, trackUnaVez } from './metaPixel';
+import Recargar from './Recargar';
 import AnimatedBackground from './AnimatedBackground';
 import AnimatedNumber from './AnimatedNumber';
 import AIChat from './AIChat';
@@ -35,64 +36,6 @@ function formatoNumeroWhatsApp(numero) {
   return m ? `+1 ${m[1]}-${m[2]}-${m[3]}` : `+${numero}`;
 }
 
-// Métodos de pago "manuales" — requieren enviar datos sensibles (cuenta, correo,
-// wallet, o un link de pago) que preferimos NO mostrar públicos en la web. Para
-// estos, el panel pide los datos por WhatsApp en privado. "Tarjeta" también va
-// por aquí a propósito: el link de pago se manda camuflado por WhatsApp, no se
-// genera desde el panel (evita que la pasarela vea de qué es la venta).
-// Apple Pay / Google Pay / Amazon Pay / Cash App / Cuotas se procesan igual
-// que "Tarjeta" (misma pasarela) — se listan aparte solo para que el cliente
-// vea todas las opciones que realmente acepta y confíe más al pagar.
-const MEDIOS_PAGO_MANUAL = [
-  'Tarjeta', 'Apple Pay', 'Google Pay', 'Amazon Pay', 'Cash App', 'Cuotas',
-  'Zelle', 'PayPal', 'Binance', 'Criptomonedas', 'Banesco Panamá', 'Towerbank', 'Yappy', 'Bancolombia', 'Nequi', 'BancoEstado',
-];
-
-// Mensaje de WhatsApp al elegir un método de pago. Si hay datos de cobro para ese
-// método, van dentro del mismo mensaje — el cliente paga sin esperar respuesta y
-// solo falta que mande la captura. Sin datos (Tarjeta, etc.) se piden por chat.
-// Medios que se cobran con link de pago (Stripe): el admin lo manda por chat.
-const MEDIOS_CON_LINK = ['Tarjeta', 'Apple Pay', 'Google Pay', 'Amazon Pay', 'Cash App', 'Cuotas'];
-
-// PayPal cobra comisión al que envía; el cliente debe sumarla al monto.
-const COMISION_PAYPAL_PCT = 6;
-
-// Moneda local en la que se paga cada método local, y país -> moneda para mostrar
-// el equivalente en los paquetes. La tasa viene del backend (TASAS_MONEDA).
-const MONEDA_POR_MEDIO = { Bancolombia: 'COP', Nequi: 'COP', BancoEstado: 'CLP' };
-const MONEDA_POR_PAIS = { CO: 'COP', CL: 'CLP' };
-const LOCALE_MONEDA = { COP: 'es-CO', CLP: 'es-CL' };
-const REDONDEO_MONEDA = { COP: 100, CLP: 10 };
-
-function montoLocal(usd, moneda, tasas) {
-  const tasa = Number(tasas?.[moneda]);
-  if (!moneda || !tasa || !Number(usd)) return null;
-  const paso = REDONDEO_MONEDA[moneda] || 1;
-  const valor = Math.round((Number(usd) * tasa) / paso) * paso;
-  return `$${valor.toLocaleString(LOCALE_MONEDA[moneda])} ${moneda}`;
-}
-
-function mensajeRecarga(paquete, medio, datos, tasas) {
-  const creditos = Number(paquete?.creditos_otorgados || 0).toLocaleString();
-  const local = montoLocal(paquete?.precio_usd, MONEDA_POR_MEDIO[medio], tasas);
-  const monto = local ? `$${Number(paquete?.precio_usd)} USD (${local})` : `$${Number(paquete?.precio_usd)} USD`;
-  const base = `Hola, voy a pagar ${monto} a través de ${medio} para recargar ${creditos} Viral Credits en Viralizame.com.`;
-  if (MEDIOS_CON_LINK.includes(medio)) return `${base} ¿Me envían el link de pago?`;
-  if (!datos) return `${base} ¿Me confirman los datos para completar el pago?`;
-  let aviso = '';
-  if (medio === 'PayPal') {
-    const total = (Number(paquete?.precio_usd || 0) * (1 + COMISION_PAYPAL_PCT / 100)).toFixed(2);
-    aviso = `
-
-IMPORTANTE: con la comisión de PayPal (${COMISION_PAYPAL_PCT}%), el total a pagar es $${total} USD (ya incluye la comisión).`;
-  }
-  return `${base}
-
-Utilizaré estos datos para el envío:
-${datos}${aviso}
-
-Una vez realizado el pago, les envío el comprobante por este chat para que lo verifiquen y me acrediten los Viral Credits.`;
-}
 
 // Explica en corto y en humano qué hace cada tipo de servicio — para el cliente
 // nuevo que nunca ha usado un panel y no sabe qué significa "Alcance + Impresiones".
@@ -362,12 +305,6 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
   const [historial, setHistorial] = useState([]);
   const [paquetesRecarga, setPaquetesRecarga] = useState([]);
   const [niveles, setNiveles] = useState([]);
-  const [tasas, setTasas] = useState({}); // { COP: 3300, CLP: 1000 }
-  const [monedaLocal, setMonedaLocal] = useState(null); // 'COP' | 'CLP' según el país del visitante
-  const [datosPago, setDatosPago] = useState({}); // { Zelle: '…', … } — viene del backend, solo con sesión
-  const [paqueteSeleccionado, setPaqueteSeleccionado] = useState(null);
-  const [metodoPagoSel, setMetodoPagoSel] = useState(null);
-  const [recargaConfirmada, setRecargaConfirmada] = useState(null);
   const [ordenes, setOrdenes] = useState(null); // null = aún no cargadas
   const [cargandoOrdenes, setCargandoOrdenes] = useState(false);
 
@@ -385,15 +322,26 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
   }, []);
 
   useEffect(() => { cargarTodo(); }, [cargarTodo]);
-  // Aparte de cargarTodo: si falla, la recarga sigue funcionando con el mensaje genérico.
-  // País del visitante: la función /api/geo de Vercel lo lee de su IP. Si falla
-  // (o en desarrollo local) simplemente no se muestra equivalente en moneda local.
+  // Recargas que el equipo ya resolvió: se reportan al Pixel UNA sola vez.
+  // Purchase representa únicamente pagos CONFIRMADOS (aprobados), nunca una
+  // simple solicitud. Solo se consideran resoluciones de las últimas 2 semanas
+  // para no reportar como compras nuevas las recargas históricas antiguas.
   useEffect(() => {
-    api.tasasMoneda().then(setTasas).catch(() => {});
-    fetch('/api/geo').then((r) => r.json()).then((g) => setMonedaLocal(MONEDA_POR_PAIS[g?.pais] || null)).catch(() => {});
+    api.misRecargas().then((lista) => {
+      const limite = Date.now() - 14 * 24 * 60 * 60 * 1000;
+      for (const r of lista) {
+        if (!r.revisado_en || new Date(r.revisado_en).getTime() < limite) continue;
+        if (r.estado === 'aprobado') {
+          trackUnaVez(`aprobada:${r.id}`, () => {
+            trackPixel('Purchase', { value: Number(r.monto_declarado) || 0, currency: 'USD' });
+            trackEvento('recharge_approved', { metodo: r.metodo }, r.id);
+          });
+        } else if (r.estado === 'rechazado') {
+          trackUnaVez(`rechazada:${r.id}`, () => trackEvento('recharge_rejected', { metodo: r.metodo }, r.id));
+        }
+      }
+    }).catch(() => {});
   }, []);
-  // Se vuelve a pedir al elegir un paquete para no usar datos viejos si se cambiaron.
-  useEffect(() => { api.datosPago().then(setDatosPago).catch(() => {}); }, [paqueteSeleccionado]);
 
   // Tour de bienvenida: solo para clientes nuevos de verdad (sin ningún
   // movimiento real todavía) y que no lo hayan cerrado antes.
@@ -587,28 +535,6 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
     }
   };
 
-  // Se crea la solicitud de recarga (estado 'pendiente') en el momento en que
-  // el cliente elige el método de pago, no cuando "confirma" después — antes,
-  // si el cliente pagaba por WhatsApp y nunca volvía a tocar "Ya pagué", la
-  // solicitud jamás se creaba y no aparecía para que el admin la aprobara.
-  const seleccionarMetodoPago = async (medio) => {
-    if (!paqueteSeleccionado) return;
-    setMetodoPagoSel(medio);
-    setMensaje(''); setEnviando(true);
-    try {
-      const paquete = paquetesRecarga.find((p) => p.id === paqueteSeleccionado);
-      await api.recargaManual(paqueteSeleccionado, medio, null);
-      trackPixel('InitiateCheckout', { value: Number(paquete?.precio_usd) || 0, currency: 'USD' });
-      celebrar();
-      setRecargaConfirmada(paquete || true);
-      setPaqueteSeleccionado(null); setMetodoPagoSel(null);
-    } catch (err) {
-      setMensaje(`Error: ${err.message}`);
-      setMetodoPagoSel(null);
-    } finally {
-      setEnviando(false);
-    }
-  };
 
   if (cargando) {
     return (
@@ -765,7 +691,7 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
               <Star size={13} style={{ color: '#F5A623' }} />
               <span className="text-xs font-bold" style={{ color: '#F5A623' }}>{wallet.nivel} · -{wallet.descuento_pct}%</span>
             </div>
-            <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }} onClick={() => { if (mostrarRecarga) { setRecargaConfirmada(null); setMetodoPagoSel(null); setPaqueteSeleccionado(null); } setMostrarRecarga(!mostrarRecarga); }} className="text-xs font-bold px-5 py-2.5 rounded-full" style={{ background: GRADIENT, color: '#fff', boxShadow: '0 6px 20px rgba(124,58,237,0.35)' }}>
+            <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }} onClick={() => setMostrarRecarga(!mostrarRecarga)} className="text-xs font-bold px-5 py-2.5 rounded-full" style={{ background: GRADIENT, color: '#fff', boxShadow: '0 6px 20px rgba(124,58,237,0.35)' }}>
               Recargar
             </motion.button>
           </div>
@@ -777,98 +703,13 @@ export default function Dashboard({ esAdmin, onIrAdmin, onCerrarSesion }) {
         <AnimatePresence>
           {mostrarRecarga && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="rounded-2xl p-4 mb-6 overflow-hidden" style={{ background: t.surface, border: `1px solid ${t.border}`, backdropFilter: 'blur(20px)' }}>
-              {recargaConfirmada ? (
-                <div className="flex flex-col items-start gap-3">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 size={16} style={{ color: '#10B981' }} />
-                    <p className="text-sm font-semibold">¡Listo! En cuanto confirmemos tu pago por WhatsApp, se acreditan tus créditos.</p>
-                  </div>
-                  {WHATSAPP_NUMERO && (
-                    <a
-                      href={enlaceWhatsApp(
-                        recargaConfirmada?.precio_usd
-                          ? `Hola! Acabo de enviar el comprobante de una recarga de $${recargaConfirmada.precio_usd} USD (${Number(recargaConfirmada.creditos_otorgados).toLocaleString()} Viral Credits) en Viralizame. ¿Me confirman cuando la acrediten?`
-                          : 'Hola! Acabo de enviar el comprobante de una recarga en Viralizame. ¿Me confirman cuando la acrediten?'
-                      )}
-                      target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-xs font-bold px-4 py-2.5 rounded-full"
-                      style={{ background: '#25D366', color: '#08331C' }}
-                    >
-                      <MessageCircle size={14} /> Avisar por WhatsApp (más rápido)
-                    </a>
-                  )}
-                  <button onClick={() => { setRecargaConfirmada(null); setMostrarRecarga(false); }} className="text-xs font-medium" style={{ color: t.muted }}>
-                    Cerrar
-                  </button>
-                </div>
-              ) : (
-              <>
-              <div className="rounded-xl px-3.5 py-3 mb-3" style={{ background: GRADIENT_SOFT, border: '1px solid rgba(124,58,237,0.3)' }}>
-                <p className="text-xs font-bold mb-0.5">Elige tu recarga y te ayudamos con el pago</p>
-                <p className="text-[11px] leading-relaxed" style={{ color: t.muted }}>
-                  Selecciona el monto que deseas recargar y luego tu método de pago. Te redirigimos a WhatsApp, donde nuestro equipo te asiste personalmente para completar el pago de forma segura y acreditar tus Viral Credits.
-                </p>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
-                {paquetesRecarga.map((p, i) => {
-                  const Icono = TIER_ICONOS[Math.min(i, TIER_ICONOS.length - 1)];
-                  const esMejorValor = i === paquetesRecarga.length - 1;
-                  const activo = paqueteSeleccionado === p.id;
-                  return (
-                    <motion.button
-                      key={p.id} whileHover={{ y: -3, scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                      onClick={() => { setPaqueteSeleccionado(p.id); setMetodoPagoSel(null); }}
-                      className="rounded-xl p-3 text-left relative overflow-hidden"
-                      style={{
-                        background: activo ? GRADIENT_SOFT : t.input,
-                        border: activo ? '2px solid #EC4899' : esMejorValor ? '1px solid rgba(245,166,35,0.5)' : `1px solid ${t.inputBorder}`,
-                        boxShadow: activo ? '0 4px 16px rgba(236,72,153,0.25)' : 'none',
-                      }}
-                    >
-                      {esMejorValor && (
-                        <span className="absolute top-0 right-0 text-[8px] font-bold px-2 py-0.5 rounded-bl-lg" style={{ background: GOLD_GRADIENT, color: '#3D2A08' }}>
-                          MEJOR VALOR
-                        </span>
-                      )}
-                      <Icono size={14} style={{ color: esMejorValor ? '#F5A623' : '#C4B5FD' }} className="mb-1.5" />
-                      <p className="text-xs" style={{ color: t.muted }}>${p.precio_usd} USD</p>
-                      {monedaLocal && montoLocal(p.precio_usd, monedaLocal, tasas) && (
-                        <p className="text-[10px]" style={{ color: t.muted }}>≈ {montoLocal(p.precio_usd, monedaLocal, tasas)}</p>
-                      )}
-                      <p className="font-display font-bold text-sm">{Number(p.creditos_otorgados).toLocaleString()} ♦</p>
-                    </motion.button>
-                  );
-                })}
-              </div>
-              {paqueteSeleccionado && (
-                <div>
-                  <p className="text-xs font-semibold mb-2" style={{ color: t.muted }}>¿Cómo vas a pagar?</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[...MEDIOS_PAGO_MANUAL].sort((a, b) => (MONEDA_POR_MEDIO[b] === monedaLocal && monedaLocal ? 1 : 0) - (MONEDA_POR_MEDIO[a] === monedaLocal && monedaLocal ? 1 : 0)).map((medio) => {
-                      const paquete = paquetesRecarga.find((p) => p.id === paqueteSeleccionado);
-                      return (
-                        <a
-                          key={medio}
-                          href={WHATSAPP_NUMERO ? enlaceWhatsApp(mensajeRecarga(paquete, medio, datosPago[medio], tasas)) : undefined}
-                          target="_blank" rel="noopener noreferrer"
-                          onClick={() => seleccionarMetodoPago(medio)}
-                          className="text-xs font-medium px-3 py-1.5 rounded-full cursor-pointer"
-                          style={{ background: t.input, border: `1px solid ${t.inputBorder}`, opacity: enviando ? 0.6 : 1, pointerEvents: enviando ? 'none' : 'auto' }}
-                        >
-                          {medio}
-                        </a>
-                      );
-                    })}
-                  </div>
-                  {WHATSAPP_NUMERO && (
-                    <p className="text-[10px] mt-2" style={{ color: t.muted }}>
-                      ¿No se abrió WhatsApp automáticamente? Escríbenos directamente y te ayudamos a completar tu recarga.
-                    </p>
-                  )}
-                </div>
-              )}
-              </>
-              )}
+              <Recargar
+                paquetes={paquetesRecarga}
+                t={t}
+                whatsappNumero={WHATSAPP_NUMERO}
+                email={me?.email}
+                onCerrar={() => { setMostrarRecarga(false); cargarTodo(); }}
+              />
             </motion.div>
           )}
         </AnimatePresence>
